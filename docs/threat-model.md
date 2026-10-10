@@ -36,6 +36,8 @@ Out of scope: the Docker host, real Google/Meta, the internet.
 | A12 | Session tokens | H | H | L | |
 | A13 | Customer orders | M | H | M | Ability to modify/create/remove customer orders |
 | A14 | Customer payments | M | H | M | Ability to modify payments, payment history, or payment status |
+| A15 | Database backups | | | | *Added for wargame (ADR-0008); you rate* |
+| A16 | Business reputation & regulatory standing | | | | *Added for wargame; you rate. Think about what a card-data breach triggers* |
 
 *Prompts: order data, invoices and payment status, credentials/password hashes, session tokens/JWT
 signing key, staff privileges, the LLM system prompt, the LLM compute budget, logs themselves…*
@@ -45,6 +47,10 @@ signing key, staff privileges, the LLM system prompt, the LLM compute budget, lo
 |----|-------|-------------|-------|
 | T1 | Anonymous visitor | Untrusted | Browse ducks; *or* probe for weaknesses |
 | T2 | | | |
+| Tx | Unknown adversary (wargame) | Untrusted | *You fill in. What might their motives be?* |
+| Tx | Facilitator (wargame) | Trusted, out of scope | Runs the exercise; sees ground truth (ADR-0008) |
+
+*Renumber the `Tx` rows once your own actors are in.*
 
 *Prompts: authenticated customer (honest vs malicious), staff, a compromised IdP account,
 an attacker who plants content the AI later reads, an insider with Grafana access…*

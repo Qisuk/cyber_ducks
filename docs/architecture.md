@@ -16,9 +16,13 @@
 | `otel-collector` + `lgtm` | grafana/otel-lgtm           | Logs (Loki), traces (Tempo), metrics (Prometheus), Grafana | 1–1.5 GB |
 | `cadvisor`       | cAdvisor                             | Per-container health/resource metrics                 | 80 MB    |
 | `postgres-exporter` | prometheus-community              | Database health metrics                               | 30 MB    |
+| `ops-console`    | .NET 10 Blazor (interactive server)  | Wargame: infra map, injects, decision log, response actions. **Not an attack target** ([ADR-0008](decisions/0008-wargame-and-ops-console.md)) | 200 MB |
 
-**Budget:** ~6–7.5 GB of the 9.7 GB Docker allocation. The LLM is the dominant cost; see
+**Budget:** ~6.5–8 GB of the 9.7 GB Docker allocation. The LLM is the dominant cost; see
 [ADR-0004](decisions/0004-ai-agent-ollama.md).
+
+`infra/topology.yaml` will be the single source of truth for services, networks and trust
+boundaries. It drives the Ops Console map and the diagrams below.
 
 ## Data flow (draft: refine during threat modelling)
 
@@ -38,6 +42,9 @@ flowchart LR
     PS -->|webhook| A
     A -->|SMTP| M[mailpit]
     W & A & G & PS -->|OTLP| T[otel-collector / LGTM]
+    F[Facilitator / players] -->|ops network only| C[ops-console]
+    C -->|alert state| T
+    C -.->|response actions: isolate, restore| D
 ```
 
 ## Phases
@@ -53,3 +60,7 @@ flowchart LR
 | 6 | AI agent | |
 | 7 | Arm the range: vulnerability catalogue + attack scripts | |
 | 8 | Defence: detections, hardening, WAF, segmentation | |
+| 9 | Wargame: Ops Console, scenarios, injects, role cards, after-action report | |
+
+Groundwork for Phase 9 is laid earlier: audit events and trace IDs (Phases 2–3), backups and
+restore scripts (Phase 1 onward), and `topology.yaml` (Phase 1).
