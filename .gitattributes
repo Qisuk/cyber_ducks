@@ -1,0 +1,6 @@
+# Force LF so scripts/configs work inside Linux containers
+* text=auto eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+*.png binary
+*.jpg binary
