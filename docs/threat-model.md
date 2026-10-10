@@ -36,8 +36,8 @@ Out of scope: the Docker host, real Google/Meta, the internet.
 | A12 | Session tokens | H | H | L | |
 | A13 | Customer orders | M | H | M | Ability to modify/create/remove customer orders |
 | A14 | Customer payments | M | H | M | Ability to modify payments, payment history, or payment status |
-| A15 | Database backups | | | | *Added for wargame (ADR-0008); you rate* |
-| A16 | Business reputation & regulatory standing | | | | *Added for wargame; you rate. Think about what a card-data breach triggers* |
+| A15 | Database backups | H | H | H | |
+| A16 | Business reputation & regulatory standing | L | H | L | |
 
 *Prompts: order data, invoices and payment status, credentials/password hashes, session tokens/JWT
 signing key, staff privileges, the LLM system prompt, the LLM compute budget, logs themselves…*
@@ -46,11 +46,18 @@ signing key, staff privileges, the LLM system prompt, the LLM compute budget, lo
 | ID | Actor | Trust level | Goals |
 |----|-------|-------------|-------|
 | T1 | Anonymous visitor | Untrusted | Browse ducks; *or* probe for weaknesses |
-| T2 | | | |
-| Tx | Unknown adversary (wargame) | Untrusted | *You fill in. What might their motives be?* |
-| Tx | Facilitator (wargame) | Trusted, out of scope | Runs the exercise; sees ground truth (ADR-0008) |
-
-*Renumber the `Tx` rows once your own actors are in.*
+| T2 | Logged-in shopper | Semi-trusted | Use the shop as intended *or* probe and exploit weaknesses |
+| T3 | Administrator | Trusted | Manage users, roles and store config *or* grant themselves or others excess privileges, disable logging, destroy data |
+| T4 | Auditor | Trusted | Access and review everything *(open: read-only? build an auditor role? Decide in Phase 3)* |
+| T5 | Employee | Trusted | View and ship all orders, handle cancellations *or* browse customer data and cards beyond need, tamper with orders |
+| T6 | Supply-chain attacker | Untrusted | Attack through external dependencies (LLM, tooling, APIs, imported packages) |
+| T7 | Indirect prompt injector | Any | Malicious user who inserts prompt injections in order notes/reviews etc. to trigger malicious agent behaviour |
+| T8 | AI agent | Untrusted | Could try to do anything |
+| T9 | Compromised account | Appears trusted | Escalate/elevate/pivot to cause damage, extract data |
+| T10 | External systems | Semi-trusted | May be compromised in a supply-chain attack |
+| T11 | External bots | Untrusted | May hit the API/LLM and run up charges or cause unexpected behaviour |
+| T12 | Unknown adversary (wargame) | Untrusted | Motive set secretly by the facilitator per scenario (financial, ransomware/extortion, hacktivist, competitor); players must infer it from evidence |
+| T13 | Facilitator (wargame) | Trusted, out of scope | Runs the exercise; sees ground truth (ADR-0008) |
 
 *Prompts: authenticated customer (honest vs malicious), staff, a compromised IdP account,
 an attacker who plants content the AI later reads, an insider with Grafana access…*
@@ -62,7 +69,13 @@ from less-trusted to more-trusted) and number every flow (F1, F2, …).
 | ID | Boundary | Crossed by flows |
 |----|----------|------------------|
 | TB1 | Internet/browser → proxy | F1 |
-| TB2 | | |
+| TB2 | Chat agent application → LLM | |
+| TB3 | Chat agent application → agent tools | |
+| TB4 | Agent tools → internal databases | |
+| TB5 | Chat agent application → internal databases | |
+| TB6 | Payment page → payment API | |
+| TB7 | Application → telemetry application | |
+| TB8 | | |
 
 *Prompts: web → API? agent → LLM? LLM output → back to the browser? payment-stub → webhook endpoint?
 Is the LLM itself a trust boundary? (Hint: treat its output as untrusted input.)*
