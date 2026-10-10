@@ -63,22 +63,47 @@ signing key, staff privileges, the LLM system prompt, the LLM compute budget, lo
 an attacker who plants content the AI later reads, an insider with Grafana access…*
 
 ### 1.4 Data-flow diagram & trust boundaries
-Start from the diagram in `architecture.md`. Mark each **trust boundary** (where data crosses
-from less-trusted to more-trusted) and number every flow (F1, F2, …).
+Flows F1–F20 are numbered in the diagram and flow table in `architecture.md`.
 
-| ID | Boundary | Crossed by flows |
-|----|----------|------------------|
-| TB1 | Internet/browser → proxy | F1 |
-| TB2 | Chat agent application → LLM | |
-| TB3 | Chat agent application → agent tools | |
-| TB4 | Agent tools → internal databases | |
-| TB5 | Chat agent application → internal databases | |
-| TB6 | Payment page → payment API | |
-| TB7 | Application → telemetry application | |
-| TB8 | | |
+**Method:** group components into **trust zones** (everything in a zone trusts everything else in it
+equally). A **trust boundary** is the line between two zones. Many flows can cross one boundary.
+Every boundary is a place where the receiving side must *check* what arrives (authenticate,
+authorise, validate, sanitise), so for each boundary we record which direction is dangerous and
+what the receiver must check.
 
-*Prompts: web → API? agent → LLM? LLM output → back to the browser? payment-stub → webhook endpoint?
-Is the LLM itself a trust boundary? (Hint: treat its output as untrusted input.)*
+#### Trust zones
+| Zone | Contains | Notes |
+|------|----------|-------|
+| Z1 Untrusted clients | Customer & staff browsers, bots | Anything from here can be forged. Staff get trust from *authentication*, not from the network. |
+| Z2 Edge | proxy | Decide: is this really a separate zone from Z3? |
+| Z3 Application | store-web, store-api, ai-agent, agent-tools | ai-agent is an untrusted actor (T8), so see TB5. agent-tools is the policy enforcement point for every tool call (TB11, ADR-0009). |
+| Z4 LLM | ollama | Separate zone because its *output* is untrusted |
+| Z5 Data | postgres | |
+| Z6 Backups | backups | Kept separate from Z5 so one compromise can't reach both (ransomware) |
+| Z7 External providers | idp, payment-stub, mailpit | Stand-ins for third parties outside our control |
+| Z8 Observability | otel-collector / LGTM | |
+| Z9 Range control | ops-console | Most trusted; out of attack scope (ADR-0008) |
+
+#### Trust boundaries
+| ID | Boundary | Crossed by flows | Dangerous direction | Receiver must check |
+|----|----------|------------------|---------------------|---------------------|
+| TB1 | Z1 Untrusted clients → Z2 Edge | F1, F2 | Inbound (Z1 → Z2). Every byte is attacker-controllable: body, headers, cookies, hidden fields, client-side "validation". | Valid session/token on every request; server-side validation of all input; rate limiting; never rely on UI-only checks. *(No TLS locally, so traffic can be sniffed; note as accepted risk.)* |
+| TB2 | Z2 Edge → Z3 Application | F3 | Inbound. The proxy forwards Z1 data unchanged, so it adds no trust today. | Treat everything as Z1 input. Only trust `X-Forwarded-*` headers when they come from the proxy (otherwise IP spoofing defeats logging and rate limits). *Decision: keep Z2 separate as the future WAF/TLS-termination point (Phase 8).* |
+| TB3 | Z1 Untrusted clients ↔ Z7 External providers | F11 | Both. Z1 → IdP carries credentials (brute force, credential stuffing). IdP → Z1 redirect carries the auth code (stolen via a loose `redirect_uri`). | IdP: exact `redirect_uri` match, lockout/rate limiting. App: `state`, `nonce` and PKCE on every login. |
+| TB4 | Z3 Application ↔ Z4 LLM | F6, F7 | **F7 (model → agent)** for integrity: output may carry injected instructions or bogus tool calls. F6 for confidentiality: everything in the prompt is exposed to the model. | Treat model output as untrusted input. Validate tool-call names and arguments against a schema. Only put data into the prompt that the current user may see. Limit tokens and timeouts (LLM10). |
+| TB5 | ai-agent ↔ rest of Z3 (store-web, agent-tools) | F5, F8, F9, F21 | **F8**: tool calls driven by possibly injected model output. **F21**: tool results carry other people's text into the agent's context (indirect injection, T7). **F9**: model text rendered in the customer's browser. | agent-tools: allow-listed tools, schema-validated arguments, user confirmation for state-changing tools. Results minimised, size-limited, marked as data not instructions. store-web HTML-encodes replies. F5 is rate/length limited. (ADR-0009) |
+| TB6 | Z3 Application → Z5 Data | F10 | Inbound to DB: queries built from user input. | Parameterised queries only. Least-privilege DB role (not superuser, no access to card data it doesn't need). Separate roles per service. |
+| TB7 | Z5 Data → Z6 Backups | F17 (and F20 restores) | Both. Z5 compromise → backups deleted or encrypted (ransomware). Restore direction → a tampered backup is put back. | Backups append-only from Z5 with separate credentials. Integrity hashes. Regular test restores. |
+| TB8 | Z3 Application ↔ Z7 External providers | F12, F13, F14, F15 | **F14 webhook (inbound)**: anyone who reaches it can claim "invoice paid". F12: forged/unsigned tokens. F13/F15 outbound: card data and reset links leave our control. | Webhook: HMAC signature, timestamp/replay check, re-verify payment with the provider. Tokens: verify signature, issuer, audience, expiry, pinned `alg`. Reset links built from config, never from the `Host` header. |
+| TB9 | Z3 Application → Z8 Observability | F16 | Inbound to telemetry: attacker-controlled text (usernames, chat messages) lands in logs. Sensitive data can leak *into* logs. | Structured logging (no string concatenation, so no forged log lines). Redact passwords, tokens and card numbers before export. Grafana escapes rendered values. The collector only accepts known services. |
+| TB11 | agent-tools ↔ any API (store-api now; external APIs later) | F22, F23 | Both. **F22**: the tool server could act with more privilege than the customer. **F23**: API responses may contain injected text or more data than the tool needs. | Call APIs with the customer's own token, so store-api authorises as that user. Never use a service account. Validate and filter responses before they reach F21. Allow-list destination hosts (no arbitrary URL fetch, so no SSRF). |
+| TB10 | Z9 Range control → all zones | F18, F19, F20 | **F20 outbound** is the most powerful flow in the system: control of containers usually means Docker socket access, which equals root on the host. F18 inbound: players must not reach facilitator powers. | Strong auth and role checks on the console. Ops network unreachable from Z1–Z8. Response actions are allow-listed scripts, never arbitrary commands. The Docker socket is never mounted into any range service. |
+
+**Flow coverage:** F1, F2 → TB1 · F3 → TB2 · F5, F8, F9, F21 → TB5 · F6, F7 → TB4 · F10 → TB6 ·
+F11 → TB3 · F12–F15 → TB8 · F16 → TB9 · F17 → TB7 · F18–F20 → TB10 · F22, F23 → TB11.
+**F4 (store-web → store-api)** crosses no zone boundary, but the data in it originated in Z1.
+store-api must still authorise every request per user and never assume "the web app already checked"
+(ADR-0001's point about UI-only checks).
 
 ---
 
