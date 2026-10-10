@@ -12,7 +12,8 @@
 > - **Only attack systems you own or are explicitly authorised to test.** The techniques here are
 >   for use against this local range, not anyone else's systems.
 >
-> Provided as-is for education, with no warranty. You are responsible for how you use it.
+> Provided as-is for education, with no warranty ([MIT License](LICENSE)). You are responsible
+> for how you use it.
 
 A cyber range: a deliberately vulnerable, fully local web store ("Rubber Duck Emporium") built from Docker
 services, used to practise cyber/AI attack and defence, threat modelling, and incident response.
