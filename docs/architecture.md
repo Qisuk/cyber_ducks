@@ -28,9 +28,11 @@ boundaries. It drives the Ops Console map and the diagrams below.
 ## Data flow (draft: refine during threat modelling)
 
 Boxes are **trust zones** (see `threat-model.md` §1.4). Every arrow that leaves a box crosses a
-trust boundary. ai-agent is outlined in red: it sits in Z3 but is an untrusted actor (T8), so its
-traffic with the rest of Z3 crosses boundary TB5. agent-tools is its only route to data, and its
-calls to APIs (and the results coming back) cross TB11.
+trust boundary. Inside Z3 there are two sub-zones:
+- **Z3a Agent (untrusted)**, outlined in red: ai-agent is an untrusted actor (T8). Anything crossing
+  this box's edge (F5, F8, F9, F21) crosses **TB5**.
+- **Z3b Tool gateway**: agent-tools, the agent's only route to data. Its calls to APIs and the
+  responses (F22, F23) cross **TB11**.
 calls to APIs (and the results coming back) cross TB11.
 
 ```mermaid
@@ -45,8 +47,12 @@ flowchart LR
     subgraph Z3["Z3 Application"]
         W[store-web]
         A[store-api]
-        G[ai-agent]
-        K[agent-tools]
+        subgraph Z3a["Z3a Agent (untrusted)"]
+            G[ai-agent]
+        end
+        subgraph Z3b["Z3b Tool gateway"]
+            K[agent-tools]
+        end
     end
     subgraph Z4["Z4 LLM"]
         O[ollama]
