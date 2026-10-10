@@ -22,9 +22,20 @@ Out of scope: the Docker host, real Google/Meta, the internet.
 
 | ID | Asset | C | I | A | Notes |
 |----|-------|---|---|---|-------|
-| A1 | Customer PII (name, email, address) | H | M | L | Example row |
-| A2 | PCI(card, ccv, exp) |H |L |L | |
-| A3 | | | | | |
+| A1 | Customer PII (name, email, address) | H | M | L | |
+| A2 | PCI data (card number, CVV, expiry) | H | M | L | Stored in the DB when `Vulns__StoreCardData=true` (ADR-0007) |
+| A3 | API keys | H | H | L | Keys for communication between services |
+| A4 | User/admin passwords | H | H | L | Hashed or unhashed creds |
+| A5 | DB credentials | H | H | L | DB creds, if stored anywhere |
+| A6 | Non-PII customer data (order history, payment history, etc.) | H | L | L | Info that may not be sensitive but should not be shared |
+| A7 | System chat prompt | M | H | L | |
+| A8 | Chat context/history | H | M | L | |
+| A9 | Infrastructure info (architecture details) | M | L | L | |
+| A10 | Logs/telemetry | H | H | H | |
+| A11 | Customer addresses | H | L | L | |
+| A12 | Session tokens | H | H | L | |
+| A13 | Customer orders | M | H | M | Ability to modify/create/remove customer orders |
+| A14 | Customer payments | M | H | M | Ability to modify payments, payment history, or payment status |
 
 *Prompts: order data, invoices and payment status, credentials/password hashes, session tokens/JWT
 signing key, staff privileges, the LLM system prompt, the LLM compute budget, logs themselves…*

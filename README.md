@@ -1,6 +1,6 @@
-# Rubber Duck Cyber Range
+# Cyber Ducks
 
-A deliberately vulnerable, fully local web store ("Rubber Duck Emporium") built from Docker
+A cyber range: a deliberately vulnerable, fully local web store ("Rubber Duck Emporium") built from Docker
 services, used to practise cyber/AI attack and defence.
 
 > **WARNING:** This system is intentionally insecure. Run it only on your own machine.
