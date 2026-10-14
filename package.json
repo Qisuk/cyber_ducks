@@ -1,0 +1,11 @@
+{
+  "name": "cyber-ducks-tooling",
+  "private": true,
+  "description": "Repo tooling only (diagram rendering). Not part of the range.",
+  "scripts": {
+    "diagrams": "node scripts/render-diagrams.mjs"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "11.17.0"
+  }
+}

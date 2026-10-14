@@ -1,0 +1,74 @@
+---
+config:
+  layout: elk
+---
+%% Data-flow diagram with trust zones. Source of docs/diagrams/data-flow.svg.
+%% Regenerate with: npm run diagrams
+flowchart TB
+    subgraph Z1["Z1 Untrusted clients"]
+        U[Customer browser]
+        S[Staff browser]
+    end
+    subgraph Z2["Z2 Edge"]
+        P[proxy]
+    end
+    subgraph Z3["Z3 Application"]
+        W[store-web]
+        A[store-api]
+        subgraph Z3a["Z3a Agent (untrusted)"]
+            G[ai-agent]
+        end
+        subgraph Z3b["Z3b Tool gateway"]
+            K[agent-tools]
+        end
+    end
+    subgraph Z4["Z4 LLM"]
+        O[ollama]
+    end
+    subgraph Z7["Z7 External providers"]
+        I[idp / Keycloak]
+        PS[payment-stub]
+        M[mailpit]
+    end
+    subgraph Z5["Z5 Data"]
+        D[(postgres)]
+    end
+    subgraph Z6["Z6 Backups"]
+        B[(backups)]
+    end
+    subgraph Z8["Z8 Observability"]
+        T[otel-collector / LGTM]
+    end
+    subgraph Z9["Z9 Range control"]
+        F[Facilitator / players]
+        C[ops-console]
+    end
+
+    classDef untrusted stroke:#d33,stroke-width:3px
+    class G untrusted
+
+    U -->|F1 HTTP| P
+    S -->|F2 HTTP| P
+    P -->|F3| W
+    W -->|F4 REST + JWT| A
+    W -->|F5 chat message| G
+    G -->|F6 prompt + context| O
+    O -->|F7 model output| G
+    G -->|F8 MCP tool call| K
+    K -->|F21 tool results| G
+    K -->|F22 API call as customer| A
+    A -->|F23 API response| K
+    G -->|F9 chat reply| W
+    A -->|F10 SQL| D
+    U <-.->|F11 OIDC login redirects| I
+    A -->|F12 code exchange + token validation| I
+    A -->|F13 charge| PS
+    PS -->|F14 webhook| A
+    A -->|F15 SMTP| M
+    Z3 -->|F16 OTLP: all app services| T
+    PS -->|F16| T
+    D -->|F17 pg_dump| B
+    F -->|F18 ops network only| C
+    C -->|F19 alert state| T
+    C -.->|F20 response actions: isolate, restore| Z3
+    C -.->|F20| Z5
