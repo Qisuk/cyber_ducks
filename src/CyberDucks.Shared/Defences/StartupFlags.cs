@@ -1,6 +1,7 @@
+using Microsoft.Extensions.Configuration;
 using Npgsql;
 
-namespace Store.Api;
+namespace CyberDucks.Shared.Defences;
 
 /// <summary>
 /// One-off read of a defence flag at startup, for restart-required toggles (e.g. VULN-DBROLE-01)

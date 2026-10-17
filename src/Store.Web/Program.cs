@@ -34,6 +34,10 @@ var authBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefault
     })
     .AddCookie("ExternalCookie", options => options.Cookie.Name = "duck_external");
 
+// VULN-OAUTH-01: OIDC state/nonce (CSRF & replay) protection. Read at startup because OIDC options
+// are fixed when the handler is built (restart-required toggle).
+var oauthStateSecure = await CyberDucks.Shared.Defences.StartupFlags.IsSecureAsync(builder.Configuration, "VULN-OAUTH-01");
+
 // "Sign in with Google / Meta" via the local Keycloak realms (ADR-0003).
 foreach (var (scheme, realm, secretKey) in new[]
 {
@@ -55,6 +59,13 @@ foreach (var (scheme, realm, secretKey) in new[]
         options.Scope.Add("profile");
         options.GetClaimsFromUserInfoEndpoint = true;
         options.TokenValidationParameters.NameClaimType = "name";
+        // VULN-OAUTH-01: vulnerable disables state/nonce validation, opening login CSRF and replay.
+        if (!oauthStateSecure)
+        {
+            options.ProtocolValidator.RequireState = false;
+            options.ProtocolValidator.RequireStateValidation = false;
+            options.ProtocolValidator.RequireNonce = false;
+        }
         // Reach Keycloak internally for metadata/token exchange while keeping the public issuer.
         options.BackchannelHttpHandler = new KeycloakBackchannelHandler(idpPublicHost, idpInternalHost)
         {
@@ -69,6 +80,7 @@ builder.Services.AddHttpContextAccessor();
 
 // Typed access to store-api (flow F4), with the JWT-forwarding handler attached.
 builder.Services.AddScoped<CsrfGuard>();
+builder.Services.AddHostedService<KeycloakConfigurator>();
 builder.Services.AddScoped<BasketService>();
 builder.Services.AddTransient<JwtForwardingHandler>();
 builder.Services.AddHttpClient<StoreApiClient>(client =>

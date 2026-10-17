@@ -76,6 +76,9 @@ services:
       Oidc__InternalHost: idp:8080
       Oidc__GoogleSecret: ${OIDC_GOOGLE_SECRET}
       Oidc__MetaSecret: ${OIDC_META_SECRET}
+      # Admin creds so store-web can set the redirect-URI policy at startup (VULN-OAUTH-02).
+      Keycloak__AdminUser: ${KEYCLOAK_ADMIN_USER:-admin}
+      Keycloak__AdminPassword: ${KEYCLOAK_ADMIN_PASSWORD}
       <<: *otel
       OTEL_SERVICE_NAME: store-web
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
@@ -88,6 +91,7 @@ services:
     healthcheck: *http-health
     depends_on:
       store-api: { condition: service_healthy }
+      idp: { condition: service_healthy } # for the startup redirect-URI configuration
     mem_limit: 256m
     cpus: 1.0
     logging: *logging
