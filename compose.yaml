@@ -119,6 +119,65 @@ services:
     restart: unless-stopped
     networks: [range]
 
+  # Z3a agent (untrusted): the customer chat agent. Reaches data only via agent-tools (flow F8).
+  # No public port; store-web calls it internally and forwards the customer's JWT (flow F5).
+  ai-agent:
+    build: { context: ., dockerfile: src/AiAgent/Dockerfile }
+    image: cyber-ducks/ai-agent:dev
+    labels: { range.zone: Z3, range.logs: otlp }
+    environment:
+      AgentTools__McpUrl: http://agent-tools:8080/mcp
+      # LLM provider (ADR-0010). Defaults to the local ollama container; override in .env for cloud.
+      Llm__Provider: ${Llm__Provider:-Ollama}
+      Llm__Model: ${Llm__Model:-qwen3:4b-instruct}
+      Llm__Endpoint: ${Llm__Endpoint:-}
+      Llm__ApiKey: ${Llm__ApiKey:-}
+      Llm__TimeoutSeconds: ${Llm__TimeoutSeconds:-300}
+      Llm__Think: ${Llm__Think:-false} # Ollama/qwen3 reasoning mode; slow on CPU
+      Llm__Threads: "4" # keep equal to ollama's `cpus` limit, or the CFS quota throttles inference
+      <<: *otel
+      OTEL_SERVICE_NAME: ai-agent
+      OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
+    healthcheck: *http-health
+    depends_on:
+      agent-tools: { condition: service_healthy }
+      otel-collector: { condition: service_started }
+    mem_limit: 512m
+    cpus: 1.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
+  # Local LLM inference (ADR-0004/0010), CPU-only. In the `local-llm` profile (on by default via
+  # COMPOSE_PROFILES in .env); clear it for cloud-LLM runs to save ~3-4 GB of RAM. Pulls the model
+  # on first start into a named volume, then serves. ai-agent connects lazily, so a slow first pull
+  # just delays the first chat.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [local-llm]
+    labels: { range.zone: Z3, range.logs: otlp }
+    environment:
+      # Keep one model resident: loading 2.5 GB from the volume takes ~1.5 min on this host.
+      OLLAMA_KEEP_ALIVE: 24h
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'ollama serve & pid=$$!; until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull ${Llm__Model:-qwen3:4b-instruct}; wait $$pid'
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    mem_limit: 6g
+    cpus: 4.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
   # --- Z7 External providers --------------------------------------------------------------
   # Fake payment provider. Charges always succeed, then it calls store-api's webhook (flow F14).
   payment-stub:
@@ -370,3 +429,4 @@ volumes:
   rangectlkeys: {}
   lgtmdata: {}
   otelcol-state: {}
+  ollama: {}

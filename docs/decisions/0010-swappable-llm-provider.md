@@ -15,12 +15,15 @@ demos behave differently on stronger models. Switching must not require code cha
 
   | `Llm__Provider` | Backend | Notes |
   |-----------------|---------|-------|
-  | `Ollama` (**default**) | local `ollama` container | `Llm__Model` default `qwen3:4b` |
+  | `Ollama` (**default**) | local `ollama` container | `Llm__Model` default `qwen3:4b-instruct` (see ADR-0004 update) |
   | `Anthropic` | Claude API | e.g. `claude-haiku-5-5` (cheap) or `claude-sonnet-5-5` |
   | `OpenAICompatible` | Any OpenAI-compatible endpoint (OpenAI, Azure OpenAI, LM Studio, vLLM) | `Llm__Endpoint` required |
 
-- Settings: `Llm__Provider`, `Llm__Model`, `Llm__Endpoint`, `Llm__ApiKey`, plus token/timeout limits.
-  Exact NuGet packages per provider are chosen in Phase 6.
+- Settings: `Llm__Provider`, `Llm__Model`, `Llm__Endpoint`, `Llm__ApiKey`, `Llm__TimeoutSeconds`
+  (default 300), and for Ollama `Llm__Think` (default false) and `Llm__Threads`.
+- Packages (Phase 6b): `Microsoft.Extensions.AI` 10.11 (`IChatClient` + function invocation),
+  `OllamaSharp` 5.5, `Anthropic.SDK` 5.10, `Microsoft.Extensions.AI.OpenAI` 10.11 (OpenAI-compatible).
+  Ollama-only options live in `OllamaOptionsChatClient`, so agent code stays provider-neutral.
 - The `ollama` service sits in a Compose profile (`local-llm`, enabled by default in `.env`), so
   cloud runs can skip it and save ~3–4 GB of RAM.
 - The provider and model in use are logged at startup and tagged on every agent trace, so
