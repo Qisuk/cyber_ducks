@@ -14,6 +14,8 @@ namespace CyberDucks.Tests;
 /// </summary>
 public sealed class AuthTestFactory(PostgresFixture db) : WebApplicationFactory<Program>
 {
+    public const string WebhookSecret = "test-webhook-secret";
+
     private readonly DefenceFlagStore _flags = new();
 
     public void SetFlag(string vulnId, DefenceMode mode) =>
@@ -34,6 +36,8 @@ public sealed class AuthTestFactory(PostgresFixture db) : WebApplicationFactory<
         builder.UseSetting("ConnectionStrings:Store", db.ConnectionString("store_owner", "duckstore"));
         builder.UseSetting("ConnectionStrings:Flags", db.ConnectionString("flags_reader", "range_control"));
         builder.UseSetting("Jwt:Secret", "test-signing-secret-at-least-32-bytes-long!!");
+        builder.UseSetting("Webhook:Secret", WebhookSecret);
+        builder.UseSetting("PaymentStub:BaseUrl", "http://payment-stub.invalid/"); // not called by webhook tests
         // Personas already have passwords from the SQL+seeder path; skip re-seeding in tests.
 
         builder.ConfigureServices(services =>

@@ -52,6 +52,12 @@ public sealed class StoreApiClient(HttpClient http)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<bool> PayInvoiceAsync(int invoiceId, CancellationToken ct = default)
+    {
+        using var response = await http.PostAsync($"api/invoices/{invoiceId}/pay", null, ct);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<bool> PostReviewAsync(int productId, PostReviewRequest request, CancellationToken ct = default)
     {
         using var response = await http.PostAsJsonAsync($"api/products/{productId}/reviews", request, ct);

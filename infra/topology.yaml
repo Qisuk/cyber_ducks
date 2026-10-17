@@ -36,7 +36,7 @@ services:
   backup:         { zone: Z6,  kind: container, tech: postgres:18 (pg_dump),            alpha: true,  status: implemented,
                     volume: pgbackups }
   idp:            { zone: Z7,  kind: container, tech: Keycloak,                         alpha: false, status: planned }
-  payment-stub:   { zone: Z7,  kind: container, tech: .NET 10 minimal API,              alpha: true,  status: planned }
+  payment-stub:   { zone: Z7,  kind: container, tech: .NET 10 minimal API,              alpha: true,  status: implemented }
   mailpit:        { zone: Z7,  kind: container, tech: axllent/mailpit,                  alpha: true,  status: planned }
   otel-collector: { zone: Z8,  kind: container, tech: otel/opentelemetry-collector-contrib:0.162.0, alpha: true, status: implemented,
                     note: "runs as root with read-only access to Docker log files" }

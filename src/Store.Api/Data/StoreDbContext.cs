@@ -14,4 +14,5 @@ public sealed class StoreDbContext(DbContextOptions<StoreDbContext> options) : D
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<Payment> Payments => Set<Payment>();
 }

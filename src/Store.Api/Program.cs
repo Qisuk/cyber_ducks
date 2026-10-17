@@ -12,6 +12,7 @@ using Store.Api;
 using Store.Api.Auth;
 using Store.Api.Catalogue;
 using Store.Api.Orders;
+using Store.Api.Payments;
 using Store.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,6 +50,14 @@ builder.Services.AddDefence<IProductSearch, VulnerableProductSearch, SecureProdu
 builder.Services.AddDefence<IProfileUpdate, VulnerableProfileUpdate, SecureProfileUpdate>("VULN-MASS-01");
 builder.Services.AddDefence<IOrderPricing, VulnerableOrderPricing, SecureOrderPricing>("VULN-LOGIC-01");
 builder.Services.AddDefence<IOrderCancellation, VulnerableOrderCancellation, SecureOrderCancellation>("VULN-LOGIC-02");
+
+// Payments: shared webhook secret and the payment-stub client.
+builder.Services.AddSingleton(new WebhookOptions(
+    builder.Configuration["Webhook:Secret"] ?? throw new InvalidOperationException("Webhook:Secret is not configured.")));
+builder.Services.AddDefence<IWebhookVerifier, VulnerableWebhookVerifier, SecureWebhookVerifier>("VULN-WEBHOOK-01");
+builder.Services.AddHttpClient("payment-stub", client =>
+    client.BaseAddress = new Uri(builder.Configuration["PaymentStub:BaseUrl"]
+        ?? throw new InvalidOperationException("PaymentStub:BaseUrl is not configured.")));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -105,6 +114,7 @@ app.MapGet("/api/ping", async (NpgsqlDataSource db) =>
 app.MapCatalogue();
 app.MapAuth();
 app.MapOrders();
+app.MapPayments();
 
 app.Run();
 

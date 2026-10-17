@@ -13,7 +13,9 @@ public sealed class CatalogueTests(PostgresFixture db) : IDisposable
         .WithWebHostBuilder(host => host
             .UseSetting("ConnectionStrings:Store", db.ConnectionString("store_owner", "duckstore"))
             .UseSetting("ConnectionStrings:Flags", db.ConnectionString("flags_reader", "range_control"))
-            .UseSetting("Jwt:Secret", "test-signing-secret-at-least-32-bytes-long!!"));
+            .UseSetting("Jwt:Secret", "test-signing-secret-at-least-32-bytes-long!!")
+            .UseSetting("Webhook:Secret", "test-webhook-secret")
+            .UseSetting("PaymentStub:BaseUrl", "http://payment-stub.invalid/"));
 
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 

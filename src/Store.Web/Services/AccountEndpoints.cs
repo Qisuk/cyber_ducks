@@ -118,6 +118,15 @@ public static class AccountEndpoints
             return Results.LocalRedirect($"/orders/{id}");
         }).DisableAntiforgery().RequireAuthorization();
 
+        // Pay an invoice, then back to the order.
+        app.MapPost("/orders/{orderId:int}/pay", async ([FromRoute] int orderId, [FromForm] int invoiceId, StoreApiClient api) =>
+        {
+            await api.PayInvoiceAsync(invoiceId);
+            // The webhook marks it paid server-side; a brief wait lets the status settle before reload.
+            await Task.Delay(400);
+            return Results.LocalRedirect($"/orders/{orderId}");
+        }).DisableAntiforgery().RequireAuthorization();
+
         return account;
     }
 

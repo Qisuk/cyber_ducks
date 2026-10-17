@@ -47,6 +47,9 @@ services:
       Personas__eve: ${PERSONA_EVE_PASSWORD}
       Personas__mallory: ${PERSONA_MALLORY_PASSWORD}
       Personas__trent: ${PERSONA_TRENT_PASSWORD}
+      PaymentStub__BaseUrl: http://payment-stub:8080/
+      # Shared webhook secret (fake). VULN-WEBHOOK-01 decides whether the signature is checked.
+      Webhook__Secret: ${WEBHOOK_SECRET}
       <<: *otel
       OTEL_SERVICE_NAME: store-api
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
@@ -82,6 +85,27 @@ services:
       store-api: { condition: service_healthy }
     mem_limit: 256m
     cpus: 1.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
+  # --- Z7 External providers --------------------------------------------------------------
+  # Fake payment provider. Charges always succeed, then it calls store-api's webhook (flow F14).
+  payment-stub:
+    build: { context: ., dockerfile: src/PaymentStub/Dockerfile }
+    image: cyber-ducks/payment-stub:dev
+    labels: { range.zone: Z7, range.logs: otlp }
+    environment:
+      StoreApi__WebhookUrl: http://store-api:8080/api/payments/webhook
+      Webhook__Secret: ${WEBHOOK_SECRET}
+      <<: *otel
+      OTEL_SERVICE_NAME: payment-stub
+      OTEL_RESOURCE_ATTRIBUTES: range.zone=Z7,service.namespace=cyber-ducks
+    healthcheck: *http-health
+    depends_on:
+      store-api: { condition: service_started }
+    mem_limit: 128m
+    cpus: 0.5
     logging: *logging
     restart: unless-stopped
     networks: [range]

@@ -74,3 +74,13 @@ public sealed class Invoice
     public DateOnly DueDate { get; set; }
     public DateTimeOffset? PaidAt { get; set; }
 }
+
+public sealed class Payment
+{
+    public int Id { get; set; }
+    public int InvoiceId { get; set; }
+    public decimal Amount { get; set; }
+    public string? ProviderRef { get; set; }
+    public required string Status { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}

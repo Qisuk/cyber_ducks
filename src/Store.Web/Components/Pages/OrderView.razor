@@ -69,10 +69,17 @@
                     @if (_order.Invoice is { } invoice)
                     {
                         <h2 class="h6">Invoice</h2>
-                        <p class="small mb-0">
+                        <p class="small mb-2">
                             #@invoice.Id — @invoice.AmountDue.ToString("C", Gbp)
                             <span class="badge text-bg-light">@invoice.Status</span>
                         </p>
+                        @if (invoice.Status == "open")
+                        {
+                            <form method="post" action="/orders/@_order.Id/pay">
+                                <input type="hidden" name="invoiceId" value="@invoice.Id" />
+                                <button class="btn btn-sm btn-success" type="submit">Pay invoice</button>
+                            </form>
+                        }
                     }
                 </div>
             </div>
