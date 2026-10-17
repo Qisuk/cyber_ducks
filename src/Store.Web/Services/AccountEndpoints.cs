@@ -70,6 +70,47 @@ public static class AccountEndpoints
             return Results.LocalRedirect($"/ducks/{id}");
         }).DisableAntiforgery().RequireAuthorization();
 
+        // --- Basket (anonymous allowed; checkout requires login) ---
+        // Add to basket: the price is captured from the catalogue server-side at add time.
+        app.MapPost("/basket/add", async (
+            [FromForm] int productId, [FromForm] int quantity, StoreApiClient api, BasketService basket) =>
+        {
+            var product = (await api.GetProductsAsync()).FirstOrDefault(p => p.Id == productId);
+            if (product is not null)
+            {
+                basket.Add(new BasketLine(product.Id, product.Name, product.Sku, product.Price, Math.Max(1, quantity)));
+            }
+            return Results.LocalRedirect("/basket");
+        }).DisableAntiforgery();
+
+        app.MapPost("/basket/update", ([FromForm] int productId, [FromForm] int quantity, BasketService basket) =>
+        {
+            basket.SetQuantity(productId, quantity);
+            return Results.LocalRedirect("/basket");
+        }).DisableAntiforgery();
+
+        app.MapPost("/basket/checkout", async (
+            HttpContext http, StoreApiClient api, BasketService basket,
+            [FromForm] string shippingAddress, [FromForm] string? notes) =>
+        {
+            var lines = basket.GetLines();
+            if (lines.Count == 0)
+            {
+                return Results.LocalRedirect("/basket");
+            }
+            // The basket's prices (client-editable cookie) are sent as-is; VULN-LOGIC-01 on the API
+            // decides whether to trust them.
+            var request = new PlaceOrderRequest(shippingAddress, notes,
+                lines.Select(l => new PlaceOrderItem(l.ProductId, l.Quantity, l.UnitPrice)).ToList());
+            var (result, error) = await api.PlaceOrderAsync(request);
+            if (result is null)
+            {
+                return Results.LocalRedirect($"/checkout?error={Uri.EscapeDataString(error ?? "Order failed.")}");
+            }
+            basket.Clear();
+            return Results.LocalRedirect($"/orders/{result.OrderId}?placed=true");
+        }).DisableAntiforgery().RequireAuthorization();
+
         return account;
     }
 

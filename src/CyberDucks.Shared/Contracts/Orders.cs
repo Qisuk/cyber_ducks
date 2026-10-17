@@ -24,3 +24,13 @@ public sealed record OrderDetail(
 public sealed record OrderLine(int ProductId, string ProductName, int Quantity, decimal UnitPrice);
 
 public sealed record InvoiceView(int Id, decimal AmountDue, string Status, DateOnly DueDate, DateTimeOffset? PaidAt);
+
+/// <summary>
+/// A checkout request. Each line carries a client-supplied <see cref="PlaceOrderItem.UnitPrice"/>;
+/// whether the server trusts it or recomputes from the catalogue is VULN-LOGIC-01.
+/// </summary>
+public sealed record PlaceOrderRequest(string ShippingAddress, string? Notes, IReadOnlyList<PlaceOrderItem> Items);
+
+public sealed record PlaceOrderItem(int ProductId, int Quantity, decimal UnitPrice);
+
+public sealed record PlaceOrderResult(int OrderId, decimal Total);

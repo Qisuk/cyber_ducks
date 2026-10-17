@@ -25,6 +25,17 @@
             <p class="fs-3 fw-semibold mb-2">@_duck.Price.ToString("C", Gbp)</p>
             <p><StockBadge Stock="_duck.Stock" /> <span class="text-body-secondary small ms-2">SKU @_duck.Sku</span></p>
             <p class="lead">@_duck.Description</p>
+            @if (_duck.Stock > 0)
+            {
+                <form method="post" action="/basket/add" class="d-flex gap-2 align-items-end" style="max-width: 20rem">
+                    <input type="hidden" name="productId" value="@_duck.Id" />
+                    <div>
+                        <label class="form-label small mb-0" for="qty">Quantity</label>
+                        <input class="form-control" id="qty" name="quantity" type="number" value="1" min="1" style="width: 5rem" />
+                    </div>
+                    <button class="btn btn-warning" type="submit">Add to basket</button>
+                </form>
+            }
         </div>
     </div>
 

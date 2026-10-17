@@ -59,6 +59,17 @@ public sealed class StoreApiClient(HttpClient http)
         return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<AuthResult>(ct) : null;
     }
 
+    /// <summary>Places an order. Returns (result, null) on success or (null, error message).</summary>
+    public async Task<(PlaceOrderResult? Result, string? Error)> PlaceOrderAsync(PlaceOrderRequest request, CancellationToken ct = default)
+    {
+        using var response = await http.PostAsJsonAsync("api/orders", request, ct);
+        if (response.IsSuccessStatusCode)
+        {
+            return (await response.Content.ReadFromJsonAsync<PlaceOrderResult>(ct), null);
+        }
+        return (null, "Your order could not be placed. Please check your basket and try again.");
+    }
+
     /// <summary>Attempts login. Returns the auth result, or an error message to show the user.</summary>
     public Task<(AuthResult? Result, string? Error)> LoginAsync(LoginRequest request, CancellationToken ct = default) =>
         PostAuthAsync("api/auth/login", request, ct);

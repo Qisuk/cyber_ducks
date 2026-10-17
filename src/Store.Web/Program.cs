@@ -35,6 +35,7 @@ builder.Services.AddHttpContextAccessor();
 
 // Typed access to store-api (flow F4), with the JWT-forwarding handler attached.
 builder.Services.AddScoped<CsrfGuard>();
+builder.Services.AddScoped<BasketService>();
 builder.Services.AddTransient<JwtForwardingHandler>();
 builder.Services.AddHttpClient<StoreApiClient>(client =>
     client.BaseAddress = new Uri(builder.Configuration["StoreApi:BaseUrl"]

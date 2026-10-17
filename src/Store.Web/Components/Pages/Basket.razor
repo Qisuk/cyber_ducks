@@ -1,0 +1,52 @@
+@page "/basket"
+@inject BasketService Cart
+
+<PageTitle>Basket · Rubber Duck Emporium</PageTitle>
+
+<h1>Your basket</h1>
+
+@{
+    var lines = Cart.GetLines();
+}
+
+@if (lines.Count == 0)
+{
+    <p class="text-body-secondary">Your basket is empty. <a href="ducks">Find a duck.</a></p>
+}
+else
+{
+    <table class="table align-middle" style="max-width: 44rem">
+        <thead>
+            <tr><th>Duck</th><th class="text-end">Price</th><th>Qty</th><th class="text-end">Line</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var line in lines)
+            {
+                <tr>
+                    <td>@line.Name</td>
+                    <td class="text-end">@line.UnitPrice.ToString("C", Gbp)</td>
+                    <td>
+                        <form method="post" action="/basket/update" class="d-flex gap-1">
+                            <input type="hidden" name="productId" value="@line.ProductId" />
+                            <input class="form-control form-control-sm" style="width:4.5rem" type="number" name="quantity" value="@line.Quantity" min="0" />
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">Update</button>
+                        </form>
+                    </td>
+                    <td class="text-end">@line.LineTotal.ToString("C", Gbp)</td>
+                    <td>
+                        <form method="post" action="/basket/update">
+                            <input type="hidden" name="productId" value="@line.ProductId" />
+                            <input type="hidden" name="quantity" value="0" />
+                            <button class="btn btn-sm btn-link text-danger" type="submit">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr class="fw-semibold"><td colspan="3" class="text-end">Total</td><td class="text-end">@Cart.Total.ToString("C", Gbp)</td><td></td></tr>
+        </tfoot>
+    </table>
+
+    <a class="btn btn-warning" href="checkout">Checkout</a>
+}

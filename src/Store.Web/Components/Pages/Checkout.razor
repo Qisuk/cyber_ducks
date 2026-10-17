@@ -1,0 +1,61 @@
+@page "/checkout"
+@attribute [Authorize]
+@inject BasketService Basket
+@inject NavigationManager Navigation
+
+<PageTitle>Checkout · Rubber Duck Emporium</PageTitle>
+
+<h1>Checkout</h1>
+
+@{
+    var lines = Basket.GetLines();
+}
+
+@if (lines.Count == 0)
+{
+    <p class="text-body-secondary">Your basket is empty. <a href="ducks">Find a duck.</a></p>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(Error))
+    {
+        <div class="alert alert-danger py-2" role="alert">@Error</div>
+    }
+
+    <div class="row g-4">
+        <div class="col-md-7">
+            <form method="post" action="/basket/checkout" style="max-width: 32rem">
+                <h2 class="h5">Delivery</h2>
+                <div class="mb-2">
+                    <label class="form-label" for="shippingAddress">Shipping address</label>
+                    <textarea class="form-control" id="shippingAddress" name="shippingAddress" rows="2" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="notes">Delivery notes (optional)</label>
+                    <input class="form-control" id="notes" name="notes" />
+                </div>
+                <button class="btn btn-warning" type="submit">Place order</button>
+            </form>
+        </div>
+        <div class="col-md-5">
+            <h2 class="h6">Order summary</h2>
+            <ul class="list-group">
+                @foreach (var line in lines)
+                {
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>@line.Quantity × @line.Name</span>
+                        <span>@line.LineTotal.ToString("C", Gbp)</span>
+                    </li>
+                }
+                <li class="list-group-item d-flex justify-content-between fw-semibold">
+                    <span>Total</span><span>@Basket.Total.ToString("C", Gbp)</span>
+                </li>
+            </ul>
+            <p class="small text-body-secondary mt-2">You'll receive an invoice to pay after placing the order.</p>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+}
