@@ -34,3 +34,7 @@ public sealed record PlaceOrderRequest(string ShippingAddress, string? Notes, IR
 public sealed record PlaceOrderItem(int ProductId, int Quantity, decimal UnitPrice);
 
 public sealed record PlaceOrderResult(int OrderId, decimal Total);
+
+/// <summary>An order as seen on the staff fulfilment queue (includes the customer's email).</summary>
+public sealed record StaffOrderSummary(
+    int Id, string CustomerEmail, string Status, decimal Total, DateTimeOffset CreatedAt, string ShippingAddress);

@@ -58,6 +58,24 @@ public sealed class StoreApiClient(HttpClient http)
         return response.IsSuccessStatusCode;
     }
 
+    /// <summary>The staff fulfilment queue. Returns null if the API refuses (not staff).</summary>
+    public async Task<IReadOnlyList<StaffOrderSummary>?> GetStaffOrdersAsync(CancellationToken ct = default)
+    {
+        using var response = await http.GetAsync("api/staff/orders", ct);
+        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+        {
+            return null;
+        }
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<StaffOrderSummary>>(ct);
+    }
+
+    public async Task<bool> ShipOrderAsync(int orderId, CancellationToken ct = default)
+    {
+        using var response = await http.PostAsync($"api/staff/orders/{orderId}/ship", null, ct);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<bool> PostReviewAsync(int productId, PostReviewRequest request, CancellationToken ct = default)
     {
         using var response = await http.PostAsJsonAsync($"api/products/{productId}/reviews", request, ct);

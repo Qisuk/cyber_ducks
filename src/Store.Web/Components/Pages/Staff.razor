@@ -1,0 +1,63 @@
+@page "/staff"
+@attribute [Authorize]
+@inject StoreApiClient Api
+
+<PageTitle>Fulfilment · Rubber Duck Emporium</PageTitle>
+
+<h1>Fulfilment queue</h1>
+<p class="text-body-secondary">Staff only — ship orders that have been placed or paid.</p>
+
+@if (_loaded && _orders is null)
+{
+    <div class="alert alert-warning">
+        Your account isn't allowed to view the fulfilment queue.
+    </div>
+}
+else if (_orders is null)
+{
+    <p class="text-body-secondary">Loading…</p>
+}
+else if (_orders.Count == 0)
+{
+    <p class="text-body-secondary">Nothing waiting to ship.</p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr><th>Order</th><th>Customer</th><th>Placed</th><th>Total</th><th>Status</th><th>Ship to</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var order in _orders)
+            {
+                <tr>
+                    <td>#@order.Id</td>
+                    <td>@order.CustomerEmail</td>
+                    <td>@order.CreatedAt.ToString("d MMM yyyy")</td>
+                    <td>@order.Total.ToString("C", Gbp)</td>
+                    <td><OrderStatusBadge Status="@order.Status" /></td>
+                    <td class="small">@order.ShippingAddress</td>
+                    <td>
+                        @if (order.Status is "placed" or "paid")
+                        {
+                            <form method="post" action="/staff/orders/@order.Id/ship">
+                                <button class="btn btn-sm btn-primary" type="submit">Mark shipped</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<StaffOrderSummary>? _orders;
+    private bool _loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orders = await Api.GetStaffOrdersAsync();
+        _loaded = true;
+    }
+}

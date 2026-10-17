@@ -13,6 +13,7 @@ using Store.Api.Auth;
 using Store.Api.Catalogue;
 using Store.Api.Orders;
 using Store.Api.Payments;
+using Store.Api.Staff;
 using Store.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,10 +23,15 @@ builder.Services.AddDefenceFlags(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 
 // Store database. 'Store' connects as store_owner (vulnerable DB-role mode); 'StoreApp' as the
-// least-privilege store_app. VULN-DBROLE-01 chooses between them (step 3d).
-builder.Services.AddNpgsqlDataSource(
-    builder.Configuration.GetConnectionString("Store")
-        ?? throw new InvalidOperationException("ConnectionStrings:Store is not configured."));
+// least-privilege store_app. VULN-DBROLE-01 chooses between them.
+// A connection/pool is bound to its role at startup, so this is a restart-required toggle
+// (requires_restart=true in the seed): the flag is read once here, not on every request.
+var dbRoleSecure = await StartupFlags.IsSecureAsync(builder.Configuration, "VULN-DBROLE-01");
+var storeConnection = (dbRoleSecure
+        ? builder.Configuration.GetConnectionString("StoreApp")
+        : builder.Configuration.GetConnectionString("Store"))
+    ?? throw new InvalidOperationException("ConnectionStrings:Store / StoreApp is not configured.");
+builder.Services.AddNpgsqlDataSource(storeConnection);
 
 // EF Core shares the same pooled data source; the SQL init scripts own the schema (no migrations).
 builder.Services.AddDbContext<StoreDbContext>((sp, options) => options
@@ -55,6 +61,7 @@ builder.Services.AddDefence<IOrderCancellation, VulnerableOrderCancellation, Sec
 builder.Services.AddSingleton(new WebhookOptions(
     builder.Configuration["Webhook:Secret"] ?? throw new InvalidOperationException("Webhook:Secret is not configured.")));
 builder.Services.AddDefence<IWebhookVerifier, VulnerableWebhookVerifier, SecureWebhookVerifier>("VULN-WEBHOOK-01");
+builder.Services.AddDefence<IStaffGuard, VulnerableStaffGuard, SecureStaffGuard>("VULN-AUTHZ-01");
 builder.Services.AddHttpClient("payment-stub", client =>
     client.BaseAddress = new Uri(builder.Configuration["PaymentStub:BaseUrl"]
         ?? throw new InvalidOperationException("PaymentStub:BaseUrl is not configured.")));
@@ -115,6 +122,7 @@ app.MapCatalogue();
 app.MapAuth();
 app.MapOrders();
 app.MapPayments();
+app.MapStaff();
 
 app.Run();
 

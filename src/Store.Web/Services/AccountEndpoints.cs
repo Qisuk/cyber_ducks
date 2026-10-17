@@ -118,6 +118,13 @@ public static class AccountEndpoints
             return Results.LocalRedirect($"/orders/{id}");
         }).DisableAntiforgery().RequireAuthorization();
 
+        // Staff: ship an order, then back to the queue.
+        app.MapPost("/staff/orders/{id:int}/ship", async (int id, StoreApiClient api) =>
+        {
+            await api.ShipOrderAsync(id);
+            return Results.LocalRedirect("/staff");
+        }).DisableAntiforgery().RequireAuthorization();
+
         // Pay an invoice, then back to the order.
         app.MapPost("/orders/{orderId:int}/pay", async ([FromRoute] int orderId, [FromForm] int invoiceId, StoreApiClient api) =>
         {

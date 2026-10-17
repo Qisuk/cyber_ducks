@@ -13,7 +13,7 @@ public sealed class DefenceFlagTests(PostgresFixture db)
         var (store, sync) = await StartSyncAsync();
         try
         {
-            Assert.Equal(23, store.Snapshot.Count);
+            Assert.Equal(24, store.Snapshot.Count);
             Assert.All(store.Snapshot.Values, mode => Assert.Equal(DefenceMode.Vulnerable, mode));
         }
         finally
