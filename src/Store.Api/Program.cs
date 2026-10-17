@@ -8,8 +8,10 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using OpenTelemetry;
+using Store.Api;
 using Store.Api.Auth;
 using Store.Api.Catalogue;
+using Store.Api.Orders;
 using Store.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,9 +41,11 @@ builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton<JwtIssuer>();
 builder.Services.AddHostedService<PersonaPasswordSeeder>();
 
-// The two toggled defences (ADR-0011).
+// The toggled defences (ADR-0011).
 builder.Services.AddDefence<IPasswordVerifier, VulnerablePasswordVerifier, SecurePasswordVerifier>("VULN-PWD-01");
 builder.Services.AddDefence<ILoginGuard, VulnerableLoginGuard, SecureLoginGuard>("VULN-AUTH-01");
+builder.Services.AddDefence<IOrderAccess, VulnerableOrderAccess, SecureOrderAccess>("VULN-IDOR-01");
+builder.Services.AddDefence<IProductSearch, VulnerableProductSearch, SecureProductSearch>("VULN-SQLI-01");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -68,6 +72,9 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
+// First in the pipeline so it catches exceptions from everything below (VULN-INFO-01).
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -85,6 +92,7 @@ app.MapGet("/api/ping", async (NpgsqlDataSource db) =>
 
 app.MapCatalogue();
 app.MapAuth();
+app.MapOrders();
 
 app.Run();
 

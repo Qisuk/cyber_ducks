@@ -1,0 +1,49 @@
+@page "/orders"
+@attribute [Authorize]
+@inject StoreApiClient Api
+
+<PageTitle>My orders · Rubber Duck Emporium</PageTitle>
+
+<h1>My orders</h1>
+
+@if (_orders is null)
+{
+    <p class="text-body-secondary">Loading…</p>
+}
+else if (_orders.Count == 0)
+{
+    <p class="text-body-secondary">You haven't placed any orders yet. <a href="ducks">Find a duck.</a></p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr><th>Order</th><th>Placed</th><th>Items</th><th>Total</th><th>Status</th><th>Invoice</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var order in _orders)
+            {
+                <tr>
+                    <td>#@order.Id</td>
+                    <td>@order.CreatedAt.ToString("d MMM yyyy")</td>
+                    <td>@order.ItemCount</td>
+                    <td>@order.Total.ToString("C", Gbp)</td>
+                    <td><OrderStatusBadge Status="@order.Status" /></td>
+                    <td>
+                        @if (order.Invoice is not null)
+                        {
+                            <span class="badge text-bg-light">@order.Invoice.Status</span>
+                        }
+                    </td>
+                    <td><a class="btn btn-sm btn-outline-secondary" href="orders/@order.Id">View</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<OrderSummary>? _orders;
+
+    protected override async Task OnInitializedAsync() => _orders = await Api.GetMyOrdersAsync();
+}

@@ -1,0 +1,15 @@
+<span class="badge @_class">@Status</span>
+
+@code {
+    [Parameter, EditorRequired] public string Status { get; set; } = "";
+
+    private string _class => Status switch
+    {
+        "placed" => "text-bg-info",
+        "paid" => "text-bg-primary",
+        "shipped" => "text-bg-warning",
+        "delivered" => "text-bg-success",
+        "cancelled" => "text-bg-secondary",
+        _ => "text-bg-light",
+    };
+}

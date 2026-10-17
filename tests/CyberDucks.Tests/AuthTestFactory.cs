@@ -19,6 +19,16 @@ public sealed class AuthTestFactory(PostgresFixture db) : WebApplicationFactory<
     public void SetFlag(string vulnId, DefenceMode mode) =>
         _flags.Replace(new Dictionary<string, DefenceMode>(_flags.Snapshot) { [vulnId] = mode });
 
+    /// <summary>Mints a JWT for a seeded user (so tests can act as a persona without a password).</summary>
+    public async Task<string> TokenForAsync(int userId)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Store.Api.Data.StoreDbContext>();
+        var user = await db.Users.FindAsync(userId)
+            ?? throw new InvalidOperationException($"User {userId} not found.");
+        return scope.ServiceProvider.GetRequiredService<Store.Api.Auth.JwtIssuer>().Issue(user).Token;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:Store", db.ConnectionString("store_owner", "duckstore"));

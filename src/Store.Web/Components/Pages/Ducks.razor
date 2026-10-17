@@ -3,8 +3,19 @@
 
 <PageTitle>All ducks · Rubber Duck Emporium</PageTitle>
 
-<h1>All ducks</h1>
-<p class="text-body-secondary">@_ducks.Count ducks, all hand-squeezed for quality.</p>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">@(string.IsNullOrWhiteSpace(Q) ? "All ducks" : $"Search: \"{Q}\"")</h1>
+    @* GET form so the search term is in the URL (and so VULN-SQLI-01 is easy to probe). *@
+    <form method="get" action="ducks" class="d-flex" role="search">
+        <input class="form-control form-control-sm me-2" type="search" name="q" value="@Q" placeholder="Search ducks" aria-label="Search ducks" />
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Search</button>
+    </form>
+</div>
+
+@if (_ducks.Count == 0)
+{
+    <p class="text-body-secondary">No ducks found@(string.IsNullOrWhiteSpace(Q) ? "." : $" for \"{Q}\".") <a href="ducks">Show all.</a></p>
+}
 
 <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
     @foreach (var duck in _ducks)
@@ -28,7 +39,12 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery] public string? Q { get; set; }
+
     private IReadOnlyList<ProductSummary> _ducks = [];
 
-    protected override async Task OnInitializedAsync() => _ducks = await Api.GetProductsAsync();
+    protected override async Task OnInitializedAsync() =>
+        _ducks = string.IsNullOrWhiteSpace(Q)
+            ? await Api.GetProductsAsync()
+            : await Api.SearchProductsAsync(Q);
 }

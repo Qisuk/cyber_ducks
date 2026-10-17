@@ -28,6 +28,24 @@ public sealed class StoreApiClient(HttpClient http)
     public Task<UserInfo?> GetMeAsync(CancellationToken ct = default) =>
         http.GetFromJsonAsync<UserInfo>("api/auth/me", ct);
 
+    public async Task<IReadOnlyList<OrderSummary>> GetMyOrdersAsync(CancellationToken ct = default) =>
+        await http.GetFromJsonAsync<List<OrderSummary>>("api/orders", ct) ?? [];
+
+    /// <summary>Returns null when the order doesn't exist or isn't visible to the caller.</summary>
+    public async Task<OrderDetail?> GetOrderAsync(int id, CancellationToken ct = default)
+    {
+        using var response = await http.GetAsync($"api/orders/{id}", ct);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<OrderDetail>(ct);
+    }
+
+    public async Task<IReadOnlyList<ProductSummary>> SearchProductsAsync(string query, CancellationToken ct = default) =>
+        await http.GetFromJsonAsync<List<ProductSummary>>($"api/products/search?q={Uri.EscapeDataString(query)}", ct) ?? [];
+
     /// <summary>Attempts login. Returns the auth result, or an error message to show the user.</summary>
     public Task<(AuthResult? Result, string? Error)> LoginAsync(LoginRequest request, CancellationToken ct = default) =>
         PostAuthAsync("api/auth/login", request, ct);

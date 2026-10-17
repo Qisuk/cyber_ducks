@@ -19,6 +19,16 @@
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> All ducks
             </NavLink>
         </div>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="orders">
+                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> My orders
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
     </nav>
 </div>
 

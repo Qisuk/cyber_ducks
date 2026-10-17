@@ -39,3 +39,38 @@ public sealed class ProductReview
     public Product? Product { get; set; }
     public User? User { get; set; }
 }
+
+public sealed class Order
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public required string Status { get; set; }
+    public required string Notes { get; set; }
+    public required string ShippingAddress { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? ShippedAt { get; set; }
+    public List<OrderItem> Items { get; set; } = [];
+    public Invoice? Invoice { get; set; }
+    public User? User { get; set; }
+}
+
+public sealed class OrderItem
+{
+    public int Id { get; set; }
+    public int OrderId { get; set; }
+    public int ProductId { get; set; }
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public Product? Product { get; set; }
+}
+
+public sealed class Invoice
+{
+    public int Id { get; set; }
+    public int OrderId { get; set; }
+    public decimal AmountDue { get; set; }
+    public required string Status { get; set; }
+    public DateOnly DueDate { get; set; }
+    public DateTimeOffset? PaidAt { get; set; }
+}

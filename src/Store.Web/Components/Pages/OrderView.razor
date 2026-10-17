@@ -1,0 +1,80 @@
+@page "/orders/{Id:int}"
+@attribute [Authorize]
+@inject StoreApiClient Api
+@inject NavigationManager Navigation
+
+@if (_order is not null)
+{
+    <PageTitle>Order #@_order.Id · Rubber Duck Emporium</PageTitle>
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="orders">My orders</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Order #@_order.Id</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <h1 class="mb-0">Order #@_order.Id</h1>
+        <OrderStatusBadge Status="@_order.Status" />
+    </div>
+    <p class="text-body-secondary">Placed @_order.CreatedAt.ToString("d MMMM yyyy")@(_order.ShippedAt is { } s ? $" · shipped {s:d MMM yyyy}" : "")</p>
+
+    <div class="row g-4">
+        <div class="col-md-8">
+            <table class="table">
+                <thead><tr><th>Duck</th><th class="text-end">Qty</th><th class="text-end">Price</th><th class="text-end">Line</th></tr></thead>
+                <tbody>
+                    @foreach (var item in _order.Items)
+                    {
+                        <tr>
+                            <td>@item.ProductName</td>
+                            <td class="text-end">@item.Quantity</td>
+                            <td class="text-end">@item.UnitPrice.ToString("C", Gbp)</td>
+                            <td class="text-end">@((item.Quantity * item.UnitPrice).ToString("C", Gbp))</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="fw-semibold"><td colspan="3" class="text-end">Total</td><td class="text-end">@_order.Total.ToString("C", Gbp)</td></tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h6">Delivery</h2>
+                    <p class="small mb-3">@_order.ShippingAddress</p>
+                    @if (!string.IsNullOrWhiteSpace(_order.Notes))
+                    {
+                        <h2 class="h6">Notes</h2>
+                        <p class="small mb-3">@_order.Notes</p>
+                    }
+                    @if (_order.Invoice is { } invoice)
+                    {
+                        <h2 class="h6">Invoice</h2>
+                        <p class="small mb-0">
+                            #@invoice.Id — @invoice.AmountDue.ToString("C", Gbp)
+                            <span class="badge text-bg-light">@invoice.Status</span>
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private OrderDetail? _order;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _order = await Api.GetOrderAsync(Id);
+        if (_order is null)
+        {
+            Navigation.NotFound();
+        }
+    }
+}

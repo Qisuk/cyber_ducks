@@ -11,6 +11,10 @@ public static class CatalogueEndpoints
     {
         var products = app.MapGroup("/api/products").WithTags("Catalogue");
 
+        // Public product search. The query handling is behind VULN-SQLI-01.
+        products.MapGet("/search", async (string? q, IProductSearch search, CancellationToken ct) =>
+            await search.SearchAsync(q ?? "", ct));
+
         products.MapGet("/", async (StoreDbContext db, CancellationToken ct) =>
             await db.Products
                 .AsNoTracking()
