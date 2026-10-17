@@ -11,9 +11,67 @@ x-logging: &logging
   options:
     max-size: "10m"
     max-file: "3"
-    labels: "com.docker.compose.project,com.docker.compose.service,range.zone"
+    labels: "com.docker.compose.project,com.docker.compose.service,range.zone,range.logs"
+
+# OpenTelemetry settings shared by the .NET services (merged in with `<<: *otel`).
+x-otel: &otel
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+
+# Readiness check for the .NET services. The runtime image has no curl, so use bash's /dev/tcp.
+x-http-health: &http-health
+  test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3 && head -1 <&3 | grep -q ' 200 '"]
+  interval: 10s
+  timeout: 3s
+  retries: 12
+  start_period: 10s
 
 services:
+  # --- Z3 Application ---------------------------------------------------------------------
+  store-api:
+    build: { context: ., dockerfile: src/Store.Api/Dockerfile }
+    image: cyber-ducks/store-api:dev
+    labels: { range.zone: Z3, range.logs: otlp }
+    environment:
+      # Vulnerable DB-role default: store_owner. store_app is the least-privilege alternative (VULN-DBROLE-01).
+      ConnectionStrings__Store: Host=postgres;Database=duckstore;Username=store_owner;Password=${STORE_OWNER_PASSWORD}
+      ConnectionStrings__StoreApp: Host=postgres;Database=duckstore;Username=store_app;Password=${STORE_APP_PASSWORD}
+      ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
+      <<: *otel
+      OTEL_SERVICE_NAME: store-api
+      OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
+    healthcheck: *http-health
+    depends_on:
+      postgres: { condition: service_healthy }
+      otel-collector: { condition: service_started }
+    mem_limit: 256m
+    cpus: 1.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
+  store-web:
+    build: { context: ., dockerfile: src/Store.Web/Dockerfile }
+    image: cyber-ducks/store-web:dev
+    labels: { range.zone: Z3, range.logs: otlp }
+    environment:
+      StoreApi__BaseUrl: http://store-api:8080/
+      ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
+      <<: *otel
+      OTEL_SERVICE_NAME: store-web
+      OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
+    ports:
+      # Temporary: published directly until the proxy (Z2) takes over this port in step 3e.
+      - "127.0.0.1:${STORE_PORT:-8080}:8080"
+    healthcheck: *http-health
+    depends_on:
+      store-api: { condition: service_healthy }
+    mem_limit: 256m
+    cpus: 1.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
   # --- Z5 Data ----------------------------------------------------------------------------
   postgres:
     image: postgres:18

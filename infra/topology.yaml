@@ -26,8 +26,8 @@ services:
   facilitator:      { zone: Z9, kind: client }
 
   proxy:          { zone: Z2,  kind: container, tech: nginx,                            alpha: true,  status: planned }
-  store-web:      { zone: Z3,  kind: container, tech: .NET 10 Blazor Web App,           alpha: true,  status: planned }
-  store-api:      { zone: Z3,  kind: container, tech: .NET 10 ASP.NET Core Web API,     alpha: true,  status: planned }
+  store-web:      { zone: Z3,  kind: container, tech: .NET 10 Blazor Web App (static SSR), alpha: true, status: implemented }
+  store-api:      { zone: Z3,  kind: container, tech: .NET 10 ASP.NET Core minimal API, alpha: true,  status: implemented }
   ai-agent:       { zone: Z3a, kind: container, tech: .NET 10 + Microsoft.Extensions.AI, alpha: true, status: planned }
   agent-tools:    { zone: Z3b, kind: container, tech: .NET 10 + MCP C# SDK,             alpha: true,  status: planned }
   ollama:         { zone: Z4,  kind: container, tech: ollama/ollama,                    alpha: true,  status: planned, profile: local-llm }

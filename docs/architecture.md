@@ -80,7 +80,7 @@ every app service sends OTLP.
 | 0 | Threat model & design | ✓ | Core done; continues alongside the build |
 | 1 | Skeleton: compose, Postgres schema + seed | ✓ | Done |
 | 2 | Telemetry stack + container health | ✓ | Done: "Range health" dashboard |
-| 3 | Store API + UI with local login | ✓ | |
+| 3 | Store API + UI with local login | ✓ | **In progress**: 3a skeleton done |
 | 4 | Order lifecycle: cancel, invoices, payment stub, staff shipping | ✓ (minimal) | |
 | 5 | OAuth via Keycloak ("Google"/"Meta") | | |
 | 6 | AI agent + agent-tools, swappable LLM (ADR-0010) | ✓ | |

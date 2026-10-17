@@ -1,0 +1,43 @@
+﻿@page "/"
+@inject IHttpClientFactory HttpClients
+
+<PageTitle>Rubber Duck Emporium</PageTitle>
+
+<h1>Rubber Duck Emporium</h1>
+<p class="lead">Quality rubber ducks for debuggers, defenders and the occasional pirate.</p>
+
+<div class="card mt-4" style="max-width: 32rem">
+    <div class="card-body">
+        <h2 class="h6 card-title">System check</h2>
+        @if (_ping is null)
+        {
+            <p class="text-danger mb-0">store-api unreachable: @_error</p>
+        }
+        else
+        {
+            <p class="mb-0">
+                <span class="text-success">●</span> store-api is up.
+                Database time: @_ping.DatabaseTime.ToString("u")
+            </p>
+        }
+    </div>
+</div>
+
+@code {
+    private PingResponse? _ping;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _ping = await HttpClients.CreateClient("store-api").GetFromJsonAsync<PingResponse>("api/ping");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private sealed record PingResponse(string Service, DateTime DatabaseTime);
+}

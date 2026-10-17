@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CyberDucks.Shared\CyberDucks.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lets the test project host the API in-process (WebApplicationFactory). -->
+    <InternalsVisibleTo Include="CyberDucks.Tests" />
+  </ItemGroup>
+
+</Project>

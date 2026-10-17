@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CyberDucks.Shared/CyberDucks.Shared.csproj" />
+    <Project Path="src/Store.Api/Store.Api.csproj" />
+    <Project Path="src/Store.Web/Store.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CyberDucks.Tests/CyberDucks.Tests.csproj" />
+  </Folder>
+</Solution>

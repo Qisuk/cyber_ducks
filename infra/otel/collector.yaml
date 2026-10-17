@@ -34,9 +34,10 @@ receivers:
           parse_from: attributes.time
           layout_type: gotime
           layout: "2006-01-02T15:04:05.999999999Z07:00"
-      # Keep only this range's containers (Docker Desktop runs others on the same engine).
+      # Keep only this range's containers (Docker Desktop runs others on the same engine), and skip
+      # services that send their own structured logs over OTLP (label range.logs=otlp): no duplicates.
       - type: filter
-        expr: 'attributes.attrs == nil or attributes.attrs["com.docker.compose.project"] != "cyber-ducks"'
+        expr: 'attributes.attrs == nil or attributes.attrs["com.docker.compose.project"] != "cyber-ducks" or attributes.attrs["range.logs"] == "otlp"'
       - type: move
         from: attributes.attrs["com.docker.compose.service"]
         to: resource["service.name"]

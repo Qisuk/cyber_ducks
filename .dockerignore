@@ -1,0 +1,15 @@
+# Keep the Docker build context small: only what the Dockerfiles copy matters.
+**/bin/
+**/obj/
+.git/
+.vs/
+node_modules/
+docs/
+tests/
+attacks/
+detections/
+infra/
+scripts/
+*.pdf
+.env
+.env.*
