@@ -39,6 +39,44 @@ public static class AccountEndpoints
             return Results.Redirect("/");
         });
 
+        // Start a social login: challenge the chosen OIDC provider (google / meta).
+        account.MapGet("/external/{provider}", (string provider) =>
+        {
+            if (provider is not ("google" or "meta"))
+            {
+                return Results.NotFound();
+            }
+            var props = new AuthenticationProperties { RedirectUri = $"/account/social-complete?provider={provider}" };
+            return Results.Challenge(props, [provider]);
+        }).AllowAnonymous();
+
+        // OIDC succeeded: turn the external identity into a local session via store-api.
+        account.MapGet("/social-complete", async (string provider, HttpContext http, StoreApiClient api) =>
+        {
+            var external = await http.AuthenticateAsync("ExternalCookie");
+            await http.SignOutAsync("ExternalCookie");
+            if (!external.Succeeded)
+            {
+                return Results.Redirect("/login?error=Social+login+failed.");
+            }
+
+            var p = external.Principal!;
+            var request = new SocialLoginRequest(
+                provider,
+                p.FindFirstValue("sub") ?? p.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                p.FindFirstValue("email") ?? p.FindFirstValue(ClaimTypes.Email),
+                p.FindFirstValue("email_verified") == "true",
+                p.FindFirstValue("name") ?? p.Identity?.Name ?? "Duck fan");
+
+            var (result, error) = await api.SocialLoginAsync(request);
+            if (result is null)
+            {
+                return Results.Redirect($"/login?error={Uri.EscapeDataString(error ?? "Social login failed.")}");
+            }
+            await SignInAsync(http, result);
+            return Results.LocalRedirect("/");
+        }).AllowAnonymous();
+
         // Profile edit. The API decides whether a role change is honoured (VULN-MASS-01); here we
         // re-sign-in with the re-issued token so any change is reflected immediately.
         account.MapPost("/profile", async (

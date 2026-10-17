@@ -9,6 +9,7 @@ namespace Store.Api.Data;
 public sealed class StoreDbContext(DbContextOptions<StoreDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
     public DbSet<Order> Orders => Set<Order>();

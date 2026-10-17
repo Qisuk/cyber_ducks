@@ -16,6 +16,17 @@ public sealed class User
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+public sealed class UserIdentity
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public required string Provider { get; set; }
+    public required string Subject { get; set; }
+    public string? Email { get; set; }
+    public bool EmailVerified { get; set; }
+    public DateTimeOffset LinkedAt { get; set; }
+}
+
 public sealed class Product
 {
     public int Id { get; set; }

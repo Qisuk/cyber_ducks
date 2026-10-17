@@ -82,7 +82,7 @@ every app service sends OTLP.
 | 2 | Telemetry stack + container health | ✓ | Done: "Range health" dashboard |
 | 3 | Store API + UI with local login | ✓ | Done: 9 toggles (PWD, AUTH, IDOR, SQLI, INFO, MASS, XSS, CSRF, SESSION); DBROLE deferred to Phase 4 |
 | 4 | Order lifecycle + range-control panel | ✓ (minimal) | Done: panel, place/cancel/pay/ship, DBROLE (restart) & AUTHZ toggles |
-| 5 | OAuth via Keycloak ("Google"/"Meta") | | |
+| 5 | OAuth via Keycloak ("Google"/"Meta") | | **In progress**: social login + VULN-OAUTH-03 done; OAUTH-01/02 to wire |
 | 6 | AI agent + agent-tools, swappable LLM (ADR-0010) | ✓ | |
 | 7 | Arm the range: vulnerability catalogue + attack scripts | | |
 | 8 | Defence: detections, hardening, WAF, segmentation | | |

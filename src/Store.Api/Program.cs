@@ -62,6 +62,7 @@ builder.Services.AddSingleton(new WebhookOptions(
     builder.Configuration["Webhook:Secret"] ?? throw new InvalidOperationException("Webhook:Secret is not configured.")));
 builder.Services.AddDefence<IWebhookVerifier, VulnerableWebhookVerifier, SecureWebhookVerifier>("VULN-WEBHOOK-01");
 builder.Services.AddDefence<IStaffGuard, VulnerableStaffGuard, SecureStaffGuard>("VULN-AUTHZ-01");
+builder.Services.AddDefence<ISocialLinking, VulnerableSocialLinking, SecureSocialLinking>("VULN-OAUTH-03");
 builder.Services.AddHttpClient("payment-stub", client =>
     client.BaseAddress = new Uri(builder.Configuration["PaymentStub:BaseUrl"]
         ?? throw new InvalidOperationException("PaymentStub:BaseUrl is not configured.")));

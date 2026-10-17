@@ -20,15 +20,49 @@ builder.Services.AddDataProtection()
     .SetApplicationName("cyber-ducks-web");
 
 // The JWT from store-api is kept inside the (encrypted) auth cookie's token store; the browser
-// never sees it (decision 1).
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+// never sees it (decision 1). "ExternalCookie" is a short-lived intermediary for the OIDC flow.
+var idpPublicHost = builder.Configuration["Oidc:PublicHost"] ?? "localhost:8091";
+var idpInternalHost = builder.Configuration["Oidc:InternalHost"] ?? "idp:8080";
+
+var authBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/login";
         options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
         options.Cookie.Name = "duck_auth";
+    })
+    .AddCookie("ExternalCookie", options => options.Cookie.Name = "duck_external");
+
+// "Sign in with Google / Meta" via the local Keycloak realms (ADR-0003).
+foreach (var (scheme, realm, secretKey) in new[]
+{
+    ("google", "google", "Oidc:GoogleSecret"),
+    ("meta", "meta", "Oidc:MetaSecret"),
+})
+{
+    authBuilder.AddOpenIdConnect(scheme, options =>
+    {
+        options.Authority = $"http://{idpPublicHost}/realms/{realm}";
+        options.ClientId = "cyber-ducks-web";
+        options.ClientSecret = builder.Configuration[secretKey];
+        options.SignInScheme = "ExternalCookie";
+        options.ResponseType = "code";
+        options.CallbackPath = $"/signin-{scheme}";
+        options.SaveTokens = true;
+        options.RequireHttpsMetadata = false; // plain HTTP range
+        options.Scope.Add("email");
+        options.Scope.Add("profile");
+        options.GetClaimsFromUserInfoEndpoint = true;
+        options.TokenValidationParameters.NameClaimType = "name";
+        // Reach Keycloak internally for metadata/token exchange while keeping the public issuer.
+        options.BackchannelHttpHandler = new KeycloakBackchannelHandler(idpPublicHost, idpInternalHost)
+        {
+            InnerHandler = new HttpClientHandler(),
+        };
     });
+}
+
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();

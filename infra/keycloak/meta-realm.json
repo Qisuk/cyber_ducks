@@ -1,0 +1,42 @@
+{
+  "realm": "meta",
+  "enabled": true,
+  "displayName": "Meta (mock)",
+  "loginTheme": "keycloak",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "clients": [
+    {
+      "clientId": "cyber-ducks-web",
+      "name": "Rubber Duck Emporium",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "meta-client-secret-dev",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:8080/signin-meta"],
+      "webOrigins": ["http://localhost:8080"]
+    }
+  ],
+  "users": [
+    {
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@duckstore.test",
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Brown",
+      "credentials": [{ "type": "password", "value": "meta-bob", "temporary": false }]
+    },
+    {
+      "username": "mallory",
+      "enabled": true,
+      "email": "alice@duckstore.test",
+      "emailVerified": false,
+      "firstName": "Mallory",
+      "lastName": "Impersonator",
+      "credentials": [{ "type": "password", "value": "meta-mallory", "temporary": false }]
+    }
+  ]
+}

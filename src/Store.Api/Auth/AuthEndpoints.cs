@@ -23,9 +23,70 @@ public static class AuthEndpoints
         auth.MapPost("/login", LoginAsync);
         auth.MapGet("/me", Me).RequireAuthorization();
         auth.MapPut("/profile", UpdateProfileAsync).RequireAuthorization();
+        // Internal: called by store-web after a successful OIDC flow (not reachable externally).
+        auth.MapPost("/social", SocialLoginAsync);
 
         return auth;
     }
+
+    private static async Task<IResult> SocialLoginAsync(
+        SocialLoginRequest request, StoreDbContext db, ISocialLinking linking, JwtIssuer jwt,
+        ILogger<Program> log, CancellationToken ct)
+    {
+        var email = request.Email?.Trim().ToLowerInvariant();
+
+        // 1. Known identity: this provider+subject has logged in before.
+        var identity = await db.UserIdentities
+            .SingleOrDefaultAsync(i => i.Provider == request.Provider && i.Subject == request.Subject, ct);
+        if (identity is not null)
+        {
+            var existing = await db.Users.FindAsync([identity.UserId], ct);
+            return existing is null ? Results.Unauthorized() : IssueToken(jwt, existing);
+        }
+
+        // 2. Account linking by email (VULN-OAUTH-03).
+        if (email is not null)
+        {
+            var byEmail = await db.Users.SingleOrDefaultAsync(u => u.Email == email, ct);
+            if (byEmail is not null)
+            {
+                if (!linking.MayLinkByEmail(request.EmailVerified))
+                {
+                    log.LogWarning("Refused to link {Provider} login to {Email} (email not verified)", request.Provider, email);
+                    return Results.Json(new { message = "That email is not verified with the provider." },
+                        statusCode: StatusCodes.Status403Forbidden);
+                }
+                db.UserIdentities.Add(NewIdentity(byEmail.Id, request));
+                await db.SaveChangesAsync(ct);
+                log.LogInformation("Linked {Provider} login to existing user {UserId}", request.Provider, byEmail.Id);
+                return IssueToken(jwt, byEmail);
+            }
+        }
+
+        // 3. First time: create a new customer and link the identity.
+        var user = new User
+        {
+            Email = email ?? $"{request.Provider}-{request.Subject}@social.local",
+            DisplayName = request.DisplayName,
+            Role = "customer",
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync(ct);
+        db.UserIdentities.Add(NewIdentity(user.Id, request));
+        await db.SaveChangesAsync(ct);
+        log.LogInformation("Created customer {UserId} from {Provider} login", user.Id, request.Provider);
+        return IssueToken(jwt, user);
+    }
+
+    private static UserIdentity NewIdentity(int userId, SocialLoginRequest request) => new()
+    {
+        UserId = userId,
+        Provider = request.Provider,
+        Subject = request.Subject,
+        Email = request.Email,
+        EmailVerified = request.EmailVerified,
+        LinkedAt = DateTimeOffset.UtcNow,
+    };
 
     private static async Task<IResult> UpdateProfileAsync(
         UpdateProfileRequest request, ClaimsPrincipal principal, StoreDbContext db,

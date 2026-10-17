@@ -1,0 +1,42 @@
+{
+  "realm": "google",
+  "enabled": true,
+  "displayName": "Google (mock)",
+  "loginTheme": "keycloak",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "clients": [
+    {
+      "clientId": "cyber-ducks-web",
+      "name": "Rubber Duck Emporium",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "google-client-secret-dev",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:8080/signin-google"],
+      "webOrigins": ["http://localhost:8080"]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@duckstore.test",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Anders",
+      "credentials": [{ "type": "password", "value": "google-alice", "temporary": false }]
+    },
+    {
+      "username": "newduck",
+      "enabled": true,
+      "email": "newduck@gmail.test",
+      "emailVerified": true,
+      "firstName": "New",
+      "lastName": "Duck",
+      "credentials": [{ "type": "password", "value": "google-newduck", "temporary": false }]
+    }
+  ]
+}

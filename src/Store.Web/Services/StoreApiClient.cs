@@ -107,6 +107,9 @@ public sealed class StoreApiClient(HttpClient http)
     public Task<(AuthResult? Result, string? Error)> RegisterAsync(RegisterRequest request, CancellationToken ct = default) =>
         PostAuthAsync("api/auth/register", request, ct);
 
+    public Task<(AuthResult? Result, string? Error)> SocialLoginAsync(SocialLoginRequest request, CancellationToken ct = default) =>
+        PostAuthAsync("api/auth/social", request, ct);
+
     private async Task<(AuthResult?, string?)> PostAuthAsync(string path, object request, CancellationToken ct)
     {
         using var response = await http.PostAsJsonAsync(path, request, ct);

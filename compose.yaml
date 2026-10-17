@@ -71,6 +71,11 @@ services:
       StoreApi__BaseUrl: http://store-api:8080/
       ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
       DataProtection__KeyPath: /keys
+      # OAuth: Keycloak's public URL (browser/issuer) vs the internal address store-web uses.
+      Oidc__PublicHost: localhost:${IDP_PORT:-8091}
+      Oidc__InternalHost: idp:8080
+      Oidc__GoogleSecret: ${OIDC_GOOGLE_SECRET}
+      Oidc__MetaSecret: ${OIDC_META_SECRET}
       <<: *otel
       OTEL_SERVICE_NAME: store-web
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
@@ -106,6 +111,36 @@ services:
       store-api: { condition: service_started }
     mem_limit: 128m
     cpus: 0.5
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
+  # Local OIDC provider standing in for Google and Meta (ADR-0003). Two realms = two mock IdPs.
+  # KC_HOSTNAME is the browser-facing URL (issuer); backchannel-dynamic lets store-web's container
+  # reach it internally at idp:8080 (store-web rewrites the host).
+  idp:
+    image: quay.io/keycloak/keycloak:26.8.1
+    labels: { range.zone: Z7 }
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: http://localhost:${IDP_PORT:-8091}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "127.0.0.1:${IDP_PORT:-8091}:8080"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q ' 200 ' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    mem_limit: 768m
+    cpus: 1.0
     logging: *logging
     restart: unless-stopped
     networks: [range]
