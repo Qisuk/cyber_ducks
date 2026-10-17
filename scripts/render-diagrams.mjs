@@ -8,9 +8,9 @@ import { spawnSync } from "node:child_process";
 
 const candidates = [
   process.env.PUPPETEER_EXECUTABLE_PATH,
+  "C:/Program Files/Google/Chrome/Application/chrome.exe", // preferred: Edge can fail to launch headless when already running
   "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
   "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
-  "C:/Program Files/Google/Chrome/Application/chrome.exe",
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
   "/usr/bin/google-chrome",
@@ -26,7 +26,7 @@ if (!browser) {
 
 const tmp = mkdtempSync(join(tmpdir(), "cyber-ducks-diagrams-"));
 const puppeteerConfig = join(tmp, "puppeteer.json");
-writeFileSync(puppeteerConfig, JSON.stringify({ executablePath: browser, headless: "shell" }));
+writeFileSync(puppeteerConfig, JSON.stringify({ executablePath: browser, headless: true }));
 
 const dir = "docs/diagrams";
 const sources = readdirSync(dir).filter((f) => f.endsWith(".mmd"));
