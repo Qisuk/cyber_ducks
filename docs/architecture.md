@@ -17,7 +17,7 @@
 | `otel-collector` + `lgtm` | grafana/otel-lgtm           | Logs (Loki), traces (Tempo), metrics (Prometheus), Grafana | 1–1.5 GB |
 | `cadvisor`       | cAdvisor                             | Per-container health/resource metrics                 | 80 MB    |
 | `postgres-exporter` | prometheus-community              | Database health metrics                               | 30 MB    |
-| `ops-console`    | .NET 10 Blazor (interactive server)  | Wargame: infra map, injects, decision log, response actions. **Not an attack target** ([ADR-0008](decisions/0008-wargame-and-ops-console.md)) | 200 MB |
+| `ops-console`    | .NET 10 Blazor (interactive server)  | Wargame: infra map, injects, decision log, response actions. **Not an attack target** ([ADR-0008](decisions/0008-wargame-and-ops-console.md)). Starts life as `range-control` in the alpha: the defence-toggle panel ([ADR-0011](decisions/0011-runtime-defence-toggles.md)) | 150–200 MB |
 
 **Budget:** ~6.6–8.1 GB of the 9.7 GB Docker allocation. The LLM is the dominant cost; see
 [ADR-0004](decisions/0004-ai-agent-ollama.md).
@@ -71,18 +71,21 @@ every app service sends OTLP.
 
 ## Phases
 
-| # | Phase | Status |
-|---|-------|--------|
-| 0 | Threat model & design | **In progress** |
-| 1 | Skeleton: compose, Postgres schema + seed | |
-| 2 | Telemetry stack + container health | |
-| 3 | Store API + UI with local login | |
-| 4 | Order lifecycle: cancel, invoices, payment stub, staff shipping | |
-| 5 | OAuth via Keycloak ("Google"/"Meta") | |
-| 6 | AI agent | |
-| 7 | Arm the range: vulnerability catalogue + attack scripts | |
-| 8 | Defence: detections, hardening, WAF, segmentation | |
-| 9 | Wargame: Ops Console, scenarios, injects, role cards, after-action report | |
+| # | Phase | Alpha | Status |
+|---|-------|-------|--------|
+| 0 | Threat model & design | ✓ | Core done; continues alongside the build |
+| 1 | Skeleton: compose, Postgres schema + seed | ✓ | **In progress** |
+| 2 | Telemetry stack + container health | ✓ | |
+| 3 | Store API + UI with local login | ✓ | |
+| 4 | Order lifecycle: cancel, invoices, payment stub, staff shipping | ✓ (minimal) | |
+| 5 | OAuth via Keycloak ("Google"/"Meta") | | |
+| 6 | AI agent + agent-tools, swappable LLM (ADR-0010) | ✓ | |
+| 7 | Arm the range: vulnerability catalogue + attack scripts | | |
+| 8 | Defence: detections, hardening, WAF, segmentation | | |
+| 9 | Wargame: Ops Console, scenarios, injects, role cards, after-action report | | |
+
+**Alpha:** a store you can log into and order from, with telemetry and the AI agent. The alpha is
+naturally unhardened; vulnerability toggles (ADR-0006) arrive in Phase 7.
 
 Groundwork for Phase 9 is laid earlier: audit events and trace IDs (Phases 2–3), backups and
 restore scripts (Phase 1 onward), and `topology.yaml` (Phase 1).

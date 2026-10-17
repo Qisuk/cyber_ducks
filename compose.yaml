@@ -1,0 +1,39 @@
+# Cyber Ducks range. DELIBERATELY INSECURE: run only on your own machine.
+# Start:  docker compose up -d        Reset all data:  docker compose down -v
+# Settings come from .env (copy .env.example to .env first).
+
+name: cyber-ducks
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # Bound to localhost only, never 0.0.0.0. Exposed so you can explore the DB with psql/pgAdmin.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Named volume: data survives restarts, wiped by `docker compose down -v`.
+      # (Postgres 18+ images keep data under /var/lib/postgresql.)
+      - pgdata:/var/lib/postgresql
+      # Scripts here run once, in filename order, only when the data volume is empty (ADR-0002).
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Safety rail: resource limits stay on even when the range is "vulnerable".
+    mem_limit: 512m
+    cpus: 1.0
+    restart: unless-stopped
+    networks: [range]
+
+networks:
+  # Single flat network for the alpha. Splitting it into trust zones is a Phase 8 defence exercise.
+  range: {}
+
+volumes:
+  pgdata: {}
