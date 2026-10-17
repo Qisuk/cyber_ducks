@@ -144,59 +144,61 @@ yet, and they belong in §3 (vuln IDs) and `attacks/<VULN-ID>/`. Use this templa
 | Boundary | S | T | R | I | D | E |
 |----------|---|---|---|---|---|---|
 | TB1 Untrusted clients → Edge | TH1 | TH2 | TH3 | TH4, TH5 | TH6 | TH7 |
-| TB2 Edge → Application | | | | | | |
-| TB3 Clients ↔ External providers | | | | | | |
-| TB4 Application ↔ LLM | | TH10 | | | | |
-| TB5 ai-agent ↔ rest of Z3 | TH11 | | TH12 | TH8 | | TH9 |
-| TB6 Application → Data | | | | | | |
-| TB7 Data → Backups | | | | | | |
+| TB2 Edge → Application | | TH16 | | | | |
+| TB3 Clients ↔ External providers | TH18, TH19 | | | | | |
+| TB4 Application ↔ LLM | | TH10, TH21 | | TH20 | | |
+| TB5 ai-agent ↔ rest of Z3 | TH11 | TH23, TH25 | TH12 | TH8, TH22, TH24 | | TH9 |
+| TB6 Application → Data | | TH26 | | | | |
+| TB7 Data → Backups | | TH27 | | | | |
 | TB8 Application ↔ External providers | | | | | | |
 | TB9 Application → Observability | | | | | | TH13 |
-| TB10 Range control → all zones | | | | | | |
-| TB11 agent-tools ↔ any API | | | | | | |
+| TB10 Range control → all zones | | | | TH34 | | |
+| TB11 agent-tools ↔ any API | | TH37 | | | | TH36 |
 
 #### Threats
-*Placeholder rows TH14–TH35 give every boundary-crossing flow at least one line. Fill them in,
+*Placeholder rows (boundary and flow filled, rest blank) give every boundary-crossing flow at least one line. Fill them in,
 add more rows per flow as needed, and delete any placeholder that has no credible threat (mark "n/a" in the tracker).
 For AI-related threats, also fill the **OWASP LLM** column and update the §2.2 checklist.*
 
 | ID | Boundary / flow | From → To | STRIDE | OWASP LLM | Threat | Actor | Asset | L | I |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TH1 | TB1 / F1, F2 | Browsers (Z1) → proxy (Z2) | S | | An attacker can act as another customer or staff member by exploiting weak session or token handling (theft, replay, forgery), resulting in unauthorised actions under the victim's identity | T9 | A12 | M | H |
-| TH2 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | T | | A shopper can alter business values (price, quantity, amount due) by exploiting server-side trust in client-supplied data, resulting in fraudulent orders or payments | T2 | A13, A14 | H | H |
-| TH3 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | R | | A customer can deny performing an order action by exploiting insufficient audit logging, resulting in disputes the business cannot resolve | T2 | A13, A10 | M | M |
-| TH4 | TB1 / F1 → F4 | Customer browser (Z1) → proxy (Z2) → store-api (Z3) | I | | A shopper can read other customers' orders by exploiting missing object-level authorisation (IDOR), resulting in disclosure of customer data | T2 | A1, A6 | H | H |
-| TH5 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | I | | An anonymous visitor can learn internal details of the system by exploiting verbose error handling, resulting in easier reconnaissance | T1 | A9 | H | M |
-| TH6 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | D | | Automated bots can make the store unavailable by exploiting the absence of rate limiting, resulting in lost sales and reputation | T11 | A16 | M | H |
-| TH7 | TB1 / F1 → F4 | Customer browser (Z1) → proxy (Z2) → store-api (Z3) | E | | A shopper can gain staff powers by exploiting unrestricted binding of client-supplied fields (mass assignment), resulting in privilege escalation | T2 | A17 | H | H |
+| TH1 | TB1 / F1, F2 | Browsers (Z1) → proxy (Z2) | S |  | An attacker can act as another customer or staff member by exploiting weak session or token handling (theft, replay, forgery), resulting in unauthorised actions under the victim's identity | T9 | A12 | M | H |
+| TH2 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | T |  | A shopper can alter business values (price, quantity, amount due) by exploiting server-side trust in client-supplied data, resulting in fraudulent orders or payments | T2 | A13, A14 | H | H |
+| TH3 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | R |  | A customer can deny performing an order action by exploiting insufficient audit logging, resulting in disputes the business cannot resolve | T2 | A13, A10 | M | M |
+| TH4 | TB1 / F1 → F4 | Customer browser (Z1) → proxy (Z2) → store-api (Z3) | I |  | A shopper can read other customers' orders by exploiting missing object-level authorisation (IDOR), resulting in disclosure of customer data | T2 | A1, A6 | H | H |
+| TH5 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | I |  | An anonymous visitor can learn internal details of the system by exploiting verbose error handling, resulting in easier reconnaissance | T1 | A9 | H | M |
+| TH6 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | D |  | Automated bots can make the store unavailable by exploiting the absence of rate limiting, resulting in lost sales and reputation | T11 | A16 | M | H |
+| TH7 | TB1 / F1 → F4 | Customer browser (Z1) → proxy (Z2) → store-api (Z3) | E |  | A shopper can gain staff powers by exploiting unrestricted binding of client-supplied fields (mass assignment), resulting in privilege escalation | T2 | A17 | H | H |
 | TH8 | TB5 / F21 | agent-tools (Z3b) → ai-agent (Z3a) | I | LLM01, LLM02 | An indirect prompt injector can make the agent disclose other customers' data by exploiting the agent treating tool results as instructions (indirect prompt injection), resulting in disclosure of customer data | T7 | A1, A6 | H | H |
 | TH9 | TB5 / F21 → F8 | agent-tools (Z3b) → ai-agent (Z3a) → agent-tools (Z3b) | E | LLM01, LLM06 | An indirect prompt injector can make the agent perform actions beyond the current user's rights by exploiting indirect prompt injection combined with over-privileged tools (excessive agency), resulting in unauthorised changes to orders or payments | T7 | A13, A14 | M | H |
 | TH10 | TB4 / F7 | ollama (Z4) → ai-agent (Z3a) | T | LLM03, LLM04 | A supply-chain attacker can make the model emit harmful tool calls or misleading answers by exploiting unverified model provenance (poisoned or backdoored model), resulting in corrupted agent behaviour | T6 | A8, A13 | L | H |
 | TH11 | TB5 / F5 | store-web (Z3) → ai-agent (Z3a) | S | LLM01 | A shopper can make the agent act on another customer's account by exploiting the agent trusting identity claimed in conversation instead of the authenticated session (direct prompt injection), resulting in actions and disclosures under the victim's identity | T2 | A1, A6, A13 | H | H |
 | TH12 | TB5 / F8 | ai-agent (Z3a) → agent-tools (Z3b) | R | LLM06 | A shopper can deny instructing the agent to perform an action by exploiting the lack of an audit trail linking agent actions to the prompting user and prompt, resulting in disputes that cannot be resolved | T2 | A13, A10 | M | M |
 | TH13 | TB9 / F16 | App services (Z3) → otel/LGTM (Z8) | E | LLM05 | An attacker can run code in an analyst's browser by exploiting unsanitised attacker-controlled text in telemetry (log injection / stored XSS in the log viewer), resulting in compromise of the analyst's session and trust in the logs | T7 | A10, A12 | M | H |
-| TH14 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) | | | | | | | |
-| TH15 | TB1 / F2 | Staff browser (Z1) → proxy (Z2) | | | | | | | |
-| TH16 | TB2 / F3 | proxy (Z2) → store-web (Z3) | | | | | | | |
-| TH17 | TB3 / F11 | Browser (Z1) ↔ idp (Z7) | | | | | | | |
-| TH18 | TB4 / F6 | ai-agent (Z3a) → ollama (Z4) | | | | | | | |
-| TH19 | TB4 / F7 | ollama (Z4) → ai-agent (Z3a) | | | | | | | |
-| TH20 | TB5 / F5 | store-web (Z3) → ai-agent (Z3a) | | | | | | | |
-| TH21 | TB5 / F8 | ai-agent (Z3a) → agent-tools (Z3b) | | | | | | | |
-| TH22 | TB5 / F9 | ai-agent (Z3a) → store-web (Z3) | | | | | | | |
-| TH23 | TB5 / F21 | agent-tools (Z3b) → ai-agent (Z3a) | | | | | | | |
-| TH24 | TB6 / F10 | store-api (Z3) → postgres (Z5) | | | | | | | |
-| TH25 | TB7 / F17 | postgres (Z5) → backups (Z6) | | | | | | | |
-| TH26 | TB8 / F12 | store-api (Z3) → idp (Z7) | | | | | | | |
-| TH27 | TB8 / F13 | store-api (Z3) → payment-stub (Z7) | | | | | | | |
-| TH28 | TB8 / F14 | payment-stub (Z7) → store-api (Z3) | | | | | | | |
-| TH29 | TB8 / F15 | store-api (Z3) → mailpit (Z7) | | | | | | | |
-| TH30 | TB9 / F16 | App services (Z3) → otel/LGTM (Z8) | | | | | | | |
-| TH31 | TB10 / F18 | Facilitator/players → ops-console (Z9) | | | | | | | |
-| TH32 | TB10 / F19 | ops-console (Z9) → LGTM (Z8) | | | | | | | |
-| TH33 | TB10 / F20 | ops-console (Z9) → range (Z3, Z5) | | | | | | | |
-| TH34 | TB11 / F22 | agent-tools (Z3b) → store-api (Z3) | | | | | | | |
-| TH35 | TB11 / F23 | store-api (Z3) → agent-tools (Z3b) | | | | | | | |
+| TH14 | TB1 / F1 | Customer browser (Z1) → proxy (Z2) |  |  |  |  |  |  |  |
+| TH15 | TB1 / F2 | Staff browser (Z1) → proxy (Z2) |  |  |  |  |  |  |  |
+| TH16 | TB2 / F3 | proxy (Z2) → store-web (Z3) | T |  | AitM might gain access and spoof transactions/actions | T12 | A12, A13 | L |  H |
+| TH17 | TB3 / F11 | Browser (Z1) ↔ idp (Z7) |  |  |  |  |  |  |  |
+| TH18 | TB3 / F11 | Browser (Z1) ↔ idp (Z7) | S |  | authenticated user can manipulate and expose another customer data or account | T1 | A12, A4 | L | M |
+| TH19 | TB3 / F11 | Browser (Z1) ↔ idp (Z7) | S |  | unauthenticated user may access another customer account | T1 | A12 | L | H |
+| TH20 | TB4 / F6 | ai-agent (Z3a) → ollama (Z4) | I | LLM02 | agent may expose customer information while calling the Model | T2 | A1, A6 | M | M |
+| TH21 | TB4 / F7 | ollama (Z4) → ai-agent (Z3a) | T | LLM04, LLM09 | poisoned/bad data may come back from the LLM that leads to bad/wrong actiions by the agent | T6 | A13 | M | H |
+| TH22 | TB5 / F5 | store-web (Z3) → ai-agent (Z3a) | I | LLM01 | Customer may try to present the agent with a prompt that leads to path traversal attack | T2 | A1, A6 | M | M |
+| TH23 | TB5 / F8 | ai-agent (Z3a) → agent-tools (Z3b) | T | LLM05, LLM06 | agent may call tools with unsanitised/dangerous input | T2 | A13 | H | H |
+| TH24 | TB5 / F9 | ai-agent (Z3a) → store-web (Z3) | I | LLM02 | agent may return response exposing confidental/sensitive information | T8 | A1, A6 | H | M |
+| TH25 | TB5 / F21 | agent-tools (Z3b) → ai-agent (Z3a) | T | LLM01 | tools may return injection attacks, for example a scanner returning a hostname that results in commandinjection | T7 | A1, A6 | L | H |
+| TH26 | TB6 / F10 | store-api (Z3) → postgres (Z5) | T |  | passes user input directly into the database resulting in stored injection attack | T2 | A1, A2, A13 | M | H |
+| TH27 | TB7 / F17 | postgres (Z5) → backups (Z6) | T |  | may delete/overwrite backup | T12 | A15 | M | H |
+| TH28 | TB8 / F12 | store-api (Z3) → idp (Z7) |  |  |  |  |  |  |  |
+| TH29 | TB8 / F13 | store-api (Z3) → payment-stub (Z7) |  |  |  |  |  |  |  |
+| TH30 | TB8 / F14 | payment-stub (Z7) → store-api (Z3) |  |  |  |  |  |  |  |
+| TH31 | TB8 / F15 | store-api (Z3) → mailpit (Z7) |  |  |  |  |  |  |  |
+| TH32 | TB9 / F16 | App services (Z3) → otel/LGTM (Z8) |  |  |  |  |  |  |  |
+| TH33 | TB10 / F18 | Facilitator/players → ops-console (Z9) |  |  |  |  |  |  |  |
+| TH34 | TB10 / F19 | ops-console (Z9) → LGTM (Z8) | I |  | ioperator login info leaked in log | T5 | A3, A10 | M | H |
+| TH35 | TB10 / F20 | ops-console (Z9) → range (Z3, Z5) |  |  |  |  |  |  |  |
+| TH36 | TB11 / F22 | agent-tools (Z3b) → store-api (Z3) | E | LLM06 | tools can delete or modify account as user,  | T7 | A1, A13 | H | H |
+| TH37 | TB11 / F23 | store-api (Z3) → agent-tools (Z3b) | T | LLM01 | maliciouc comment or review might inject on toolcall | T7 | A1, A6 | L | H |
 
 ### 2.2 OWASP Top 10 for LLM Applications (2025): coverage checklist
 
@@ -206,15 +208,15 @@ STRIDE tends to miss. Fill the "Covered by" column with TH IDs, or write "n/a" w
 
 | Category | What it means here | Covered by | Notes / where to look |
 |----------|--------------------|------------|-----------------------|
-| LLM01 Prompt injection | Direct (chat) or indirect (tool results) instructions that override the agent's intent | TH8, TH9, TH11 | |
-| LLM02 Sensitive information disclosure | Agent reveals other customers' data, card data or secrets | TH8 | Also consider the agent's own context (F6) |
+| LLM01 Prompt injection | Direct (chat) or indirect (tool results) instructions that override the agent's intent | TH8, TH9, TH11, TH22, TH25, TH37 | |
+| LLM02 Sensitive information disclosure | Agent reveals other customers' data, card data or secrets | TH8, TH20, TH24 | Also consider the agent's own context (F6) |
 | LLM03 Supply chain | Compromised model, MCP SDK, NuGet packages or container images | TH10 | TB4, plus build-time dependencies |
-| LLM04 Data and model poisoning | Model or fine-tune data tampered with before we use it | TH10 | |
-| LLM05 Improper output handling | Model output trusted downstream: rendered as HTML, written to logs, used in queries | TH13 | F9 (chat reply into the browser): see TH22 |
-| LLM06 Excessive agency | Agent or tools can do more than the user's task needs | TH9, TH12 | TB5 / TB11 placeholders |
+| LLM04 Data and model poisoning | Model or fine-tune data tampered with before we use it | TH10, TH21 | |
+| LLM05 Improper output handling | Model output trusted downstream: rendered as HTML, written to logs, used in queries | TH13, TH23 | F9 (chat reply into the browser): see TH22 |
+| LLM06 Excessive agency | Agent or tools can do more than the user's task needs | TH9, TH12, TH23, TH36 | TB5 / TB11 placeholders |
 | LLM07 System prompt leakage | Secrets or business rules in the system prompt extracted by users | | TB4 / F6, TB5 / F9 |
 | LLM08 Vector and embedding weaknesses | Attacks on retrieval (RAG) stores | n/a | No vector store in the design. Revisit if one is added. |
-| LLM09 Misinformation | Agent confidently gives wrong order, refund or shipping information that customers act on | | TB5 / F9; impact on A16 |
+| LLM09 Misinformation | Agent confidently gives wrong order, refund or shipping information that customers act on | TH21 | TB5 / F9; impact on A16 |
 | LLM10 Unbounded consumption | Long or repeated prompts exhaust the CPU-only LLM, starving the whole range | | TB4 / F6, TB5 / F5; actor T11 |
 
 ---
