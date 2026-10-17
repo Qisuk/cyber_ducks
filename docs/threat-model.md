@@ -190,11 +190,11 @@ For AI-related threats, also fill the **OWASP LLM** column and update the §2.2 
 | TH26 | TB6 / F10 | store-api (Z3) → postgres (Z5) | T |  | passes user input directly into the database resulting in stored injection attack | T2 | A1, A2, A13 | M | H |
 | TH27 | TB7 / F17 | postgres (Z5) → backups (Z6) | T |  | may delete/overwrite backup | T12 | A15 | M | H |
 | TH28 | TB8 / F12 | store-api (Z3) → idp (Z7) |  |  |  |  |  |  |  |
-| TH29 | TB8 / F13 | store-api (Z3) → payment-stub (Z7) |  |  |  |  |  |  |  |
-| TH30 | TB8 / F14 | payment-stub (Z7) → store-api (Z3) |  |  |  |  |  |  |  |
-| TH31 | TB8 / F15 | store-api (Z3) → mailpit (Z7) |  |  |  |  |  |  |  |
-| TH32 | TB9 / F16 | App services (Z3) → otel/LGTM (Z8) |  |  |  |  |  |  |  |
-| TH33 | TB10 / F18 | Facilitator/players → ops-console (Z9) |  |  |  |  |  |  |  |
+| TH29 | TB8 / F13 | store-api (Z3) → payment-stub (Z7) | S |  | api call can be spoofed and payments taken without authorization/associatied ordes |  |  |  |  |
+| TH30 | TB8 / F14 | payment-stub (Z7) → store-api (Z3) | T |  | store may charge for orders which were not made |  |  |  |  |
+| TH31 | TB8 / F15 | store-api (Z3) → mailpit (Z7) | T |  | may be abused to send emails ousid the expected, spam/ marketing/ social engineering etc. |  |  |  |  |
+| TH32 | TB9 / F16 | App services (Z3) → otel/LGTM (Z8) | I |  | maliciouc  or sensitive daA may be logged  exposing pii, or allowing injection attacks |  |  |  |  |
+| TH33 | TB10 / F18 | Facilitator/players → ops-console (Z9) | T |  | may try to modify the exercise |  |  |  |  |
 | TH34 | TB10 / F19 | ops-console (Z9) → LGTM (Z8) | I |  | ioperator login info leaked in log | T5 | A3, A10 | M | H |
 | TH35 | TB10 / F20 | ops-console (Z9) → range (Z3, Z5) |  |  |  |  |  |  |  |
 | TH36 | TB11 / F22 | agent-tools (Z3b) → store-api (Z3) | E | LLM06 | tools can delete or modify account as user,  | T7 | A1, A13 | H | H |
