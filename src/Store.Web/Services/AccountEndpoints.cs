@@ -42,9 +42,13 @@ public static class AccountEndpoints
         // Profile edit. The API decides whether a role change is honoured (VULN-MASS-01); here we
         // re-sign-in with the re-issued token so any change is reflected immediately.
         account.MapPost("/profile", async (
-            HttpContext http, StoreApiClient api,
+            HttpContext http, StoreApiClient api, CsrfGuard csrf,
             [FromForm] string displayName, [FromForm] string? role) =>
         {
+            if (!await csrf.ValidateAsync(http))
+            {
+                return Results.BadRequest("Invalid anti-forgery token.");
+            }
             var result = await api.UpdateProfileAsync(new UpdateProfileRequest(displayName, role));
             if (result is not null)
             {
@@ -55,9 +59,13 @@ public static class AccountEndpoints
 
         // Post a review, then back to the product.
         app.MapPost("/ducks/{id:int}/review", async (
-            int id, HttpContext http, StoreApiClient api,
+            int id, HttpContext http, StoreApiClient api, CsrfGuard csrf,
             [FromForm] int rating, [FromForm] string body) =>
         {
+            if (!await csrf.ValidateAsync(http))
+            {
+                return Results.BadRequest("Invalid anti-forgery token.");
+            }
             await api.PostReviewAsync(id, new PostReviewRequest(rating, body));
             return Results.LocalRedirect($"/ducks/{id}");
         }).DisableAntiforgery().RequireAuthorization();

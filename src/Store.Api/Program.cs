@@ -60,12 +60,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
+            // Signature handling is taken over by TogglingSignatureValidator (VULN-SESSION-01), so the
+            // framework's own signing-key / signed-token checks are turned off here.
+            ValidateIssuerSigningKey = false,
+            RequireSignedTokens = false,
             RoleClaimType = JwtIssuer.RoleClaim,
             NameClaimType = "name",
             ClockSkew = TimeSpan.FromSeconds(30),
         };
     });
+// VULN-SESSION-01: the signature check reads the live flag per token (vulnerable accepts forged/
+// unsigned tokens; secure verifies the HMAC). Added as post-config so it can inject IDefenceFlags.
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IDefenceFlags>((options, flags) =>
+        options.TokenValidationParameters.SignatureValidator =
+            (token, parameters) => TogglingSignatureValidator.Validate(token, parameters, flags));
 builder.Services.AddAuthorization();
 
 builder.Services.AddHealthChecks()
