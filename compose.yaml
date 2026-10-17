@@ -37,6 +37,16 @@ services:
       ConnectionStrings__Store: Host=postgres;Database=duckstore;Username=store_owner;Password=${STORE_OWNER_PASSWORD}
       ConnectionStrings__StoreApp: Host=postgres;Database=duckstore;Username=store_app;Password=${STORE_APP_PASSWORD}
       ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
+      # JWT signing secret (fake). VULN-SESSION-01 will add weakened variants beside this (step 3d).
+      Jwt__Secret: ${JWT_SECRET}
+      # Persona passwords, set on first start (fake). Mixed strength: alice/bob are weak on purpose.
+      Personas__alice: ${PERSONA_ALICE_PASSWORD}
+      Personas__bob: ${PERSONA_BOB_PASSWORD}
+      Personas__carol: ${PERSONA_CAROL_PASSWORD}
+      Personas__dave: ${PERSONA_DAVE_PASSWORD}
+      Personas__eve: ${PERSONA_EVE_PASSWORD}
+      Personas__mallory: ${PERSONA_MALLORY_PASSWORD}
+      Personas__trent: ${PERSONA_TRENT_PASSWORD}
       <<: *otel
       OTEL_SERVICE_NAME: store-api
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
@@ -57,12 +67,16 @@ services:
     environment:
       StoreApi__BaseUrl: http://store-api:8080/
       ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
+      DataProtection__KeyPath: /keys
       <<: *otel
       OTEL_SERVICE_NAME: store-web
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
     ports:
       # Temporary: published directly until the proxy (Z2) takes over this port in step 3e.
       - "127.0.0.1:${STORE_PORT:-8080}:8080"
+    volumes:
+      # Data Protection keys: login cookies survive restarts (decision 1).
+      - webkeys:/keys
     healthcheck: *http-health
     depends_on:
       store-api: { condition: service_healthy }
@@ -235,5 +249,6 @@ networks:
 volumes:
   pgdata: {}
   pgbackups: {}
+  webkeys: {}
   lgtmdata: {}
   otelcol-state: {}

@@ -11,6 +11,8 @@ public sealed class User
     public required string Role { get; set; }
     public string? PasswordHashLegacy { get; set; }
     public string? PasswordHash { get; set; }
+    public int FailedLoginCount { get; set; }
+    public DateTimeOffset? LockedUntil { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 

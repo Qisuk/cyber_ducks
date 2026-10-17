@@ -14,6 +14,8 @@ CREATE TABLE users (
                           CHECK (role IN ('customer', 'employee', 'admin', 'auditor')),
     password_hash_legacy  text,       -- insecure-mode credential storage (ADR-0011 dual column)
     password_hash         text,       -- secure-mode credential storage, computed by the app
+    failed_login_count    integer     NOT NULL DEFAULT 0,  -- lockout state (VULN-AUTH-01), enforced only in secure mode
+    locked_until          timestamptz,                     -- NULL = not locked
     created_at            timestamptz NOT NULL DEFAULT now()
 );
 COMMENT ON COLUMN users.role IS 'Asset A17. Target of mass assignment (TH7).';

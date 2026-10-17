@@ -1,0 +1,38 @@
+@page "/login"
+
+<PageTitle>Sign in · Rubber Duck Emporium</PageTitle>
+
+<div class="auth-card card mx-auto mt-4" style="max-width: 24rem">
+    <div class="card-body">
+        <h1 class="h4 card-title mb-3">Sign in</h1>
+
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <div class="alert alert-danger py-2" role="alert">@Error</div>
+        }
+
+        @* Plain form post to the account endpoint (decision 2). CSRF protection is VULN-CSRF-01 (step 3d). *@
+        <form method="post" action="/account/login">
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+            <div class="mb-3">
+                <label class="form-label" for="email">Email</label>
+                <input class="form-control" id="email" name="email" type="email" value="@Email" required autofocus />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">Password</label>
+                <input class="form-control" id="password" name="password" type="password" required />
+            </div>
+            <button class="btn btn-warning w-100" type="submit">Sign in</button>
+        </form>
+
+        <p class="small text-body-secondary mt-3 mb-0">
+            New here? <a href="register">Create an account</a>.
+        </p>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    [SupplyParameterFromQuery] public string? Email { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+}

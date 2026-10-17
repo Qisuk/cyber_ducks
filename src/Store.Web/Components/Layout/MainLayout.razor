@@ -6,8 +6,26 @@
     </div>
 
     <main>
-        <div class="top-row px-4 d-none d-md-flex">
-            <span class="text-body-secondary small">Free shipping on orders over £20 · Every duck squeak-tested</span>
+        <div class="top-row px-4 d-flex justify-content-between align-items-center">
+            <span class="text-body-secondary small d-none d-md-inline">
+                Free shipping on orders over £20 · Every duck squeak-tested
+            </span>
+            <div class="ms-auto">
+                <AuthorizeView>
+                    <Authorized>
+                        <span class="small me-2">Hi, <strong>@context.User.Identity?.Name</strong></span>
+                        <a class="small me-3" href="account">My account</a>
+                        @* Sign-out is a state change, so it's a POST, not a link. *@
+                        <form method="post" action="/account/logout" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Sign out</button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="small me-3" href="login">Sign in</a>
+                        <a class="btn btn-sm btn-warning" href="register">Create account</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </div>
 
         <article class="content px-4">

@@ -12,8 +12,13 @@ COPY src/Store.Web/ src/Store.Web/
 RUN dotnet publish src/Store.Web/Store.Web.csproj -c Release -o /app --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
+# Npgsql probes for Kerberos at startup; without this it logs a benign error. Keeps telemetry clean.
+RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .
+# Data Protection keys volume: create it owned by the non-root app user. A fresh named volume
+# mounted here inherits this ownership, so the app can write its keys.
+RUN mkdir -p /keys && chown $APP_UID /keys
 USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Store.Web.dll"]

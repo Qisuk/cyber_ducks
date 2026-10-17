@@ -12,7 +12,8 @@ public sealed class CatalogueTests(PostgresFixture db) : IDisposable
     private readonly WebApplicationFactory<Program> _factory = new WebApplicationFactory<Program>()
         .WithWebHostBuilder(host => host
             .UseSetting("ConnectionStrings:Store", db.ConnectionString("store_owner", "duckstore"))
-            .UseSetting("ConnectionStrings:Flags", db.ConnectionString("flags_reader", "range_control")));
+            .UseSetting("ConnectionStrings:Flags", db.ConnectionString("flags_reader", "range_control"))
+            .UseSetting("Jwt:Secret", "test-signing-secret-at-least-32-bytes-long!!"));
 
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 

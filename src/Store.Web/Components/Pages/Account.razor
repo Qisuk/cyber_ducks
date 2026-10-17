@@ -1,0 +1,43 @@
+@page "/account"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject StoreApiClient Api
+
+<PageTitle>My account · Rubber Duck Emporium</PageTitle>
+
+<h1>My account</h1>
+
+@if (_me is null)
+{
+    <p class="text-body-secondary">@(_error ?? "Loading…")</p>
+}
+else
+{
+    <dl class="row" style="max-width: 32rem">
+        <dt class="col-sm-3">Name</dt>
+        <dd class="col-sm-9">@_me.DisplayName</dd>
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@_me.Email</dd>
+        <dt class="col-sm-3">Role</dt>
+        <dd class="col-sm-9"><span class="badge text-bg-secondary">@_me.Role</span></dd>
+    </dl>
+    <p class="text-body-secondary small">Your orders will appear here in a later update.</p>
+}
+
+@code {
+    private UserInfo? _me;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Calls store-api /api/auth/me with the forwarded JWT (flow F4). Proves the token round-trips.
+        try
+        {
+            _me = await Api.GetMeAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load your account: {ex.Message}";
+        }
+    }
+}

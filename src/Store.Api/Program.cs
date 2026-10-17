@@ -1,10 +1,14 @@
+using System.Text;
 using CyberDucks.Shared.Defences;
 using CyberDucks.Shared.Telemetry;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using OpenTelemetry;
+using Store.Api.Auth;
 using Store.Api.Catalogue;
 using Store.Api.Data;
 
@@ -12,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddRangeTelemetry();
 builder.Services.AddDefenceFlags(builder.Configuration);
+builder.Services.AddSingleton(TimeProvider.System);
 
 // Store database. 'Store' connects as store_owner (vulnerable DB-role mode); 'StoreApp' as the
 // least-privilege store_app. VULN-DBROLE-01 chooses between them (step 3d).
@@ -24,10 +29,47 @@ builder.Services.AddDbContext<StoreDbContext>((sp, options) => options
     .UseNpgsql(sp.GetRequiredService<NpgsqlDataSource>())
     .UseSnakeCaseNamingConvention());
 
+// --- Authentication (step 3c) ---
+var jwtOptions = new JwtOptions
+{
+    Secret = builder.Configuration["Jwt:Secret"]
+        ?? throw new InvalidOperationException("Jwt:Secret is not configured."),
+};
+builder.Services.AddSingleton(jwtOptions);
+builder.Services.AddSingleton<JwtIssuer>();
+builder.Services.AddHostedService<PersonaPasswordSeeder>();
+
+// The two toggled defences (ADR-0011).
+builder.Services.AddDefence<IPasswordVerifier, VulnerablePasswordVerifier, SecurePasswordVerifier>("VULN-PWD-01");
+builder.Services.AddDefence<ILoginGuard, VulnerableLoginGuard, SecureLoginGuard>("VULN-AUTH-01");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false; // keep JWT claim names (sub, email, name) as-is
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Secret)),
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            RoleClaimType = JwtIssuer.RoleClaim,
+            NameClaimType = "name",
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+builder.Services.AddAuthorization();
+
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
 var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Liveness: the process is up. Readiness: it can reach the database.
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
@@ -42,6 +84,7 @@ app.MapGet("/api/ping", async (NpgsqlDataSource db) =>
 });
 
 app.MapCatalogue();
+app.MapAuth();
 
 app.Run();
 

@@ -38,7 +38,8 @@ public static class RangeTelemetry
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
-                .AddMeter("Npgsql"));
+                .AddMeter("Npgsql")
+                .AddMeter("CyberDucks.*"));  // the range's own meters (e.g. login attempts)
 
         // Only export when a collector is configured, so tests and local runs stay quiet.
         if (!string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
