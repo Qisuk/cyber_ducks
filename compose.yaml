@@ -98,6 +98,27 @@ services:
     restart: unless-stopped
     networks: [range]
 
+  # Z3b tool gateway: the agent's only route to any API (ADR-0009). Calls store-api as the
+  # customer (flow F22). Exposes the MCP endpoint at /mcp over Streamable HTTP; no public port.
+  agent-tools:
+    build: { context: ., dockerfile: src/AgentTools/Dockerfile }
+    image: cyber-ducks/agent-tools:dev
+    labels: { range.zone: Z3, range.logs: otlp }
+    environment:
+      StoreApi__BaseUrl: http://store-api:8080/
+      <<: *otel
+      OTEL_SERVICE_NAME: agent-tools
+      OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
+    healthcheck: *http-health
+    depends_on:
+      store-api: { condition: service_healthy }
+      otel-collector: { condition: service_started }
+    mem_limit: 256m
+    cpus: 1.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
   # --- Z7 External providers --------------------------------------------------------------
   # Fake payment provider. Charges always succeed, then it calls store-api's webhook (flow F14).
   payment-stub:

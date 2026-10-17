@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/AgentTools/AgentTools.csproj" />
     <Project Path="src/CyberDucks.Shared/CyberDucks.Shared.csproj" />
     <Project Path="src/PaymentStub/PaymentStub.csproj" />
     <Project Path="src/RangeControl/RangeControl.csproj" />
