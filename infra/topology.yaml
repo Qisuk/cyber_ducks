@@ -38,7 +38,13 @@ services:
   idp:            { zone: Z7,  kind: container, tech: Keycloak,                         alpha: false, status: planned }
   payment-stub:   { zone: Z7,  kind: container, tech: .NET 10 minimal API,              alpha: true,  status: planned }
   mailpit:        { zone: Z7,  kind: container, tech: axllent/mailpit,                  alpha: true,  status: planned }
-  otel-lgtm:      { zone: Z8,  kind: container, tech: grafana/otel-lgtm,                alpha: true,  status: planned }
+  otel-collector: { zone: Z8,  kind: container, tech: otel/opentelemetry-collector-contrib:0.162.0, alpha: true, status: implemented,
+                    note: "runs as root with read-only access to Docker log files" }
+  lgtm:           { zone: Z8,  kind: container, tech: grafana/otel-lgtm:0.34.0,          alpha: true,  status: implemented,
+                    note: "Grafana anonymous Admin by default (vulnerable)" }
+  cadvisor:       { zone: Z8,  kind: container, tech: ghcr.io/google/cadvisor:v0.60.6,  alpha: true,  status: implemented,
+                    note: "privileged, read-only host mounts" }
+  postgres-exporter: { zone: Z8, kind: container, tech: prometheuscommunity/postgres-exporter:v0.20.1, alpha: true, status: implemented }
   range-control:  { zone: Z9,  kind: container, tech: .NET 10 Blazor,                   alpha: true,  status: planned,
                     note: "grows into ops-console (ADR-0008, ADR-0011)" }
 
@@ -58,15 +64,17 @@ flows:
   - { id: F13, from: store-api,        to: payment-stub,  what: "charge requests", protocol: HTTP,        boundary: TB8 }
   - { id: F14, from: payment-stub,     to: store-api,     what: "payment result webhook", protocol: HTTP,        boundary: TB8 }
   - { id: F15, from: store-api,        to: mailpit,       what: "emails (password resets, receipts)", protocol: SMTP,        boundary: TB8 }
-  - { id: F16, from: [store-web, store-api, ai-agent, agent-tools, payment-stub], to: otel-lgtm,
+  - { id: F16, from: [store-web, store-api, ai-agent, agent-tools, payment-stub], to: otel-collector,
       what: "logs, traces, metrics", protocol: OTLP, boundary: TB9 }
   - { id: F17, from: postgres,         to: backup,        what: "database dumps (backup service pulls as backup_reader)", protocol: pg_dump, boundary: TB7 }
   - { id: F18, from: facilitator,      to: range-control, what: "panel UI, flag changes, decisions", protocol: HTTP,        boundary: TB10 }
-  - { id: F19, from: range-control,    to: otel-lgtm,     what: "alert state queries", protocol: HTTP,        boundary: TB10 }
+  - { id: F19, from: range-control,    to: lgtm,          what: "alert state queries", protocol: HTTP,        boundary: TB10 }
   - { id: F20, from: range-control,    to: [store-api, postgres], what: "flag changes, guards, response actions", protocol: SQL / Docker API, boundary: TB10 }
   - { id: F21, from: agent-tools,      to: ai-agent,      what: "tool results (may hold other users' text)", protocol: MCP (HTTP), boundary: TB5 }
   - { id: F22, from: agent-tools,      to: store-api,     what: "API calls with the customer's token", protocol: HTTP/REST,   boundary: TB11 }
   - { id: F23, from: store-api,        to: agent-tools,   what: "API responses", protocol: HTTP/REST,   boundary: TB11 }
+  - { id: F24, from: postgres-exporter, to: postgres,     what: "database statistics (metrics_reader, pg_monitor)", protocol: SQL/TCP, boundary: TB12 }
+  - { id: F25, from: otel-collector,   to: lgtm,          what: "all telemetry", protocol: OTLP,        boundary: null }
 
 boundaries:
   TB1:  { between: [Z1, Z2] }
@@ -80,3 +88,4 @@ boundaries:
   TB9:  { between: [Z3, Z8] }
   TB10: { between: [Z9, all] }
   TB11: { between: [Z3b, Z3] }
+  TB12: { between: [Z8, Z5] }

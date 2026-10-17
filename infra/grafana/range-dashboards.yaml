@@ -1,0 +1,11 @@
+# Grafana dashboard provisioning for the range. Mounted into the lgtm container alongside the
+# image's own providers. Dashboards in infra/grafana/dashboards/ appear in the "Cyber Ducks" folder.
+apiVersion: 1
+
+providers:
+  - name: cyber-ducks
+    folder: Cyber Ducks
+    type: file
+    allowUiUpdates: true
+    options:
+      path: /otel-lgtm/range-dashboards

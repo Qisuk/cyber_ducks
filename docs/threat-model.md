@@ -100,6 +100,7 @@ what the receiver must check.
 | TB8 | Z3 Application ↔ Z7 External providers | F12, F13, F14, F15 | **F14 webhook (inbound)**: anyone who reaches it can claim "invoice paid". F12: forged/unsigned tokens. F13/F15 outbound: card data and reset links leave our control. | Webhook: HMAC signature, timestamp/replay check, re-verify payment with the provider. Tokens: verify signature, issuer, audience, expiry, pinned `alg`. Reset links built from config, never from the `Host` header. |
 | TB9 | Z3 Application → Z8 Observability | F16 | Inbound to telemetry: attacker-controlled text (usernames, chat messages) lands in logs. Sensitive data can leak *into* logs. | Structured logging (no string concatenation, so no forged log lines). Redact passwords, tokens and card numbers before export. Grafana escapes rendered values. The collector only accepts known services. |
 | TB11 | agent-tools ↔ any API (store-api now; external APIs later) | F22, F23 | Both. **F22**: the tool server could act with more privilege than the customer. **F23**: API responses may contain injected text or more data than the tool needs. | Call APIs with the customer's own token, so store-api authorises as that user. Never use a service account. Validate and filter responses before they reach F21. Allow-list destination hosts (no arbitrary URL fetch, so no SSRF). |
+| TB12 | Z8 Observability → Z5 Data | F24 | *(added in Phase 2: you analyse)* | |
 | TB10 | Z9 Range control → all zones | F18, F19, F20 | **F20 outbound** is the most powerful flow in the system: control of containers usually means Docker socket access, which equals root on the host. F18 inbound: players must not reach facilitator powers. | Strong auth and role checks on the console. Ops network unreachable from Z1–Z8. Response actions are allow-listed scripts, never arbitrary commands. The Docker socket is never mounted into any range service. |
 
 **Flow coverage:** F1, F2 → TB1 · F3 → TB2 · F5, F8, F9, F21 → TB5 · F6, F7 → TB4 · F10 → TB6 ·
@@ -154,6 +155,7 @@ yet, and they belong in §3 (vuln IDs) and `attacks/<VULN-ID>/`. Use this templa
 | TB9 Application → Observability | | | | | | TH13 |
 | TB10 Range control → all zones | | | | TH34 | | |
 | TB11 agent-tools ↔ any API | | TH37 | | | | TH36 |
+| TB12 Observability → Data | | | | | | |
 
 #### Threats
 *Placeholder rows (boundary and flow filled, rest blank) give every boundary-crossing flow at least one line. Fill them in,

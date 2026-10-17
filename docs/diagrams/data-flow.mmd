@@ -40,7 +40,8 @@ flowchart TB
         B[(backups)]
     end
     subgraph Z8["Z8 Observability"]
-        T[otel-collector / LGTM]
+        T[otel-collector → lgtm]
+        PE[postgres-exporter]
     end
     subgraph Z9["Z9 Range control"]
         F[Facilitator / players]
@@ -71,6 +72,8 @@ flowchart TB
     Z3 -->|F16 OTLP: all app services| T
     PS -->|F16| T
     D -->|F17 pg_dump| B
+    PE -->|F24 DB stats| D
+    PE -.->|scraped| T
     F -->|F18 ops network only| C
     C -->|F19 alert state| T
     C -.->|F20 response actions: isolate, restore| Z3

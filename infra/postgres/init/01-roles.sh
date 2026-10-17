@@ -9,7 +9,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   -v store_app_pw="$STORE_APP_PASSWORD" \
   -v range_control_pw="$RANGE_CONTROL_PASSWORD" \
   -v flags_reader_pw="$FLAGS_READER_PASSWORD" \
-  -v backup_reader_pw="$BACKUP_READER_PASSWORD" <<'SQL'
+  -v backup_reader_pw="$BACKUP_READER_PASSWORD" \
+  -v metrics_reader_pw="$METRICS_READER_PASSWORD" <<'SQL'
 
 -- Owns every object in duckstore. Used by store-api in *vulnerable* DB-role mode:
 -- over-privileged within duckstore, but not a cluster superuser.
@@ -29,9 +30,14 @@ CREATE ROLE flags_reader LOGIN PASSWORD :'flags_reader_pw';
 CREATE ROLE backup_reader LOGIN PASSWORD :'backup_reader_pw';
 GRANT pg_read_all_data TO backup_reader;
 
+-- Read-only database statistics for postgres-exporter (Phase 2). pg_monitor is a built-in role
+-- for monitoring views; it cannot read table data.
+CREATE ROLE metrics_reader LOGIN PASSWORD :'metrics_reader_pw';
+GRANT pg_monitor TO metrics_reader;
+
 -- duckstore: only the roles that need it may connect.
 REVOKE CONNECT ON DATABASE duckstore FROM PUBLIC;
-GRANT CONNECT ON DATABASE duckstore TO store_owner, store_app, range_control_owner, backup_reader;
+GRANT CONNECT ON DATABASE duckstore TO store_owner, store_app, range_control_owner, backup_reader, metrics_reader;
 ALTER SCHEMA public OWNER TO store_owner;
 
 -- range_control: separate database the store roles cannot connect to.

@@ -14,9 +14,10 @@
 | `idp`            | Keycloak                             | Local OIDC provider posing as "Google" and "Meta"     | 600 MB   |
 | `payment-stub`   | .NET 10 minimal API                  | Fake payment gateway + webhooks                       | 80 MB    |
 | `mailpit`        | axllent/mailpit                      | Captures outbound email (password resets etc.)        | 30 MB    |
-| `otel-collector` + `lgtm` | grafana/otel-lgtm           | Logs (Loki), traces (Tempo), metrics (Prometheus), Grafana | 1–1.5 GB |
-| `cadvisor`       | cAdvisor                             | Per-container health/resource metrics                 | 80 MB    |
-| `postgres-exporter` | prometheus-community              | Database health metrics                               | 30 MB    |
+| `otel-collector` | otel/opentelemetry-collector-contrib:0.162.0 | Single telemetry entry point: scrapes exporters, reads Docker log files (root, read-only), receives OTLP, tags everything with its trust zone | 100 MB |
+| `lgtm`           | grafana/otel-lgtm:0.34.0             | Loki (logs), Prometheus (metrics), Tempo (traces), Grafana on 127.0.0.1:3000. **Anonymous Admin by default** (vulnerable) | 1–1.5 GB |
+| `cadvisor`       | cadvisor:v0.60.6                     | Per-container CPU/memory/network. **Privileged**, read-only host mounts, no published port | 80 MB    |
+| `postgres-exporter` | postgres-exporter:v0.20.1         | Database health metrics via the `metrics_reader` role (`pg_monitor`) | 30 MB    |
 | `backup`         | postgres:18 (`pg_dump`)              | Scheduled dumps of duckstore to the `pgbackups` volume (Z6); restore via `infra/backup/restore.sh` | 50 MB |
 | `ops-console`    | .NET 10 Blazor (interactive server)  | Wargame: infra map, injects, decision log, response actions. **Not an attack target** ([ADR-0008](decisions/0008-wargame-and-ops-console.md)). Starts life as `range-control` in the alpha: the defence-toggle panel ([ADR-0011](decisions/0011-runtime-defence-toggles.md)) | 150–200 MB |
 
@@ -69,14 +70,16 @@ every app service sends OTLP.
 | F21 | agent-tools → ai-agent | Tool results (may contain other users' text: notes, reviews, names) | MCP (HTTP) |
 | F22 | agent-tools → store-api (later: any API) | API calls carrying the customer's token | HTTP/REST |
 | F23 | store-api → agent-tools | API responses | HTTP/REST |
+| F24 | postgres-exporter → postgres | Database statistics (`metrics_reader`) | SQL/TCP |
+| F25 | otel-collector → lgtm | All telemetry | OTLP |
 
 ## Phases
 
 | # | Phase | Alpha | Status |
 |---|-------|-------|--------|
 | 0 | Threat model & design | ✓ | Core done; continues alongside the build |
-| 1 | Skeleton: compose, Postgres schema + seed | ✓ | **In progress** |
-| 2 | Telemetry stack + container health | ✓ | |
+| 1 | Skeleton: compose, Postgres schema + seed | ✓ | Done |
+| 2 | Telemetry stack + container health | ✓ | Done: "Range health" dashboard |
 | 3 | Store API + UI with local login | ✓ | |
 | 4 | Order lifecycle: cancel, invoices, payment stub, staff shipping | ✓ (minimal) | |
 | 5 | OAuth via Keycloak ("Google"/"Meta") | | |

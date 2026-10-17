@@ -1,0 +1,125 @@
+# OpenTelemetry Collector: the range's single telemetry entry point (zone Z8).
+# Pipeline: receive -> process -> export (to the lgtm container's OTLP endpoint).
+#   metrics: scrape cAdvisor, postgres-exporter and the collector itself; plus OTLP from apps
+#   logs:    read Docker's container log files; plus OTLP from apps
+#   traces:  OTLP from apps (Phase 3+)
+# Later (Phase 8): a redaction processor here strips secrets/card numbers from logs.
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  # Remembers how far each log file has been read, so restarts don't re-send old lines.
+  file_storage:
+    directory: /var/lib/otelcol/file_storage
+    create_directory: true
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Docker's json-file logs. Each line carries the labels listed in compose.yaml's
+  # x-logging options (project, service, range.zone) under "attrs".
+  file_log/docker:
+    include: [/var/lib/docker/containers/*/*-json.log]
+    start_at: beginning
+    storage: file_storage
+    include_file_path: false
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: "2006-01-02T15:04:05.999999999Z07:00"
+      # Keep only this range's containers (Docker Desktop runs others on the same engine).
+      - type: filter
+        expr: 'attributes.attrs == nil or attributes.attrs["com.docker.compose.project"] != "cyber-ducks"'
+      - type: move
+        from: attributes.attrs["com.docker.compose.service"]
+        to: resource["service.name"]
+      - type: move
+        from: attributes.attrs["com.docker.compose.project"]
+        to: resource["service.namespace"]
+      - type: move
+        if: 'attributes.attrs["range.zone"] != nil'
+        from: attributes.attrs["range.zone"]
+        to: resource["range.zone"]
+      - type: move
+        from: attributes.stream
+        to: attributes["log.iostream"]
+      - type: move
+        from: attributes.log
+        to: body
+      - type: remove
+        field: attributes.attrs
+      - type: remove
+        field: attributes.time
+
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: cadvisor
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["cadvisor:8080"]
+          metric_relabel_configs:
+            # Only this range's containers, and only the series the dashboards use.
+            - source_labels: [container_label_com_docker_compose_project]
+              regex: cyber-ducks
+              action: keep
+            - source_labels: [__name__]
+              regex: container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|network_(receive|transmit)_bytes_total|last_seen|start_time_seconds)
+              action: keep
+        - job_name: postgres
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["postgres-exporter:9187"]
+        - job_name: otel-collector
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["127.0.0.1:8888"]
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+  # Docker log lines end with a newline; strip it.
+  transform/logs:
+    log_statements:
+      - context: log
+        statements:
+          - replace_pattern(body, "\\n$", "")
+  batch: {}
+
+exporters:
+  otlp_http/lgtm:
+    endpoint: http://lgtm:4318
+    tls:
+      insecure: true
+
+service:
+  extensions: [health_check, file_storage]
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 127.0.0.1
+                port: 8888
+  pipelines:
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/lgtm]
+    logs:
+      receivers: [otlp, file_log/docker]
+      processors: [memory_limiter, transform/logs, batch]
+      exporters: [otlp_http/lgtm]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/lgtm]

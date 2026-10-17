@@ -1,0 +1,226 @@
+{
+  "uid": "range-health",
+  "title": "Range health",
+  "description": "Cyber Ducks: container status and resources, Postgres health, backups and logs. Every series is tagged with its trust zone.",
+  "tags": ["cyber-ducks", "health"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(container_last_seen, container_label_com_docker_compose_service)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row", "title": "Status", "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "type": "stat",
+      "title": "Containers",
+      "description": "UP if cAdvisor has seen the container in the last 60 seconds.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 14, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (container_label_com_docker_compose_service, container_label_range_zone) (time() - container_last_seen{container_label_com_docker_compose_service=~\"$service\"}) < bool 60",
+          "legendFormat": "{{container_label_com_docker_compose_service}} ({{container_label_range_zone}})",
+          "instant": true
+        }
+      ],
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] },
+          "noValue": "DOWN"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Postgres",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 3, "x": 14, "y": 1 },
+      "targets": [ { "refId": "A", "expr": "max(pg_up)", "instant": true } ],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [ { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } } ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] },
+          "noValue": "NO DATA"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Backups in last 65 min",
+      "description": "Successful pg_dump runs, counted from the backup service's logs. 0 means backups have stopped (asset A15).",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 5, "w": 4, "x": 17, "y": 1 },
+      "targets": [ { "refId": "A", "expr": "sum(count_over_time({service_name=\"backup\"} |= \"backup: wrote\" [65m]))", "instant": true } ],
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] },
+          "noValue": "0"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Log lines / min",
+      "description": "Log records the collector is shipping to Loki.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 3, "x": 21, "y": 1 },
+      "targets": [ { "refId": "A", "expr": "sum(rate(otelcol_exporter_sent_log_records_total[5m])) * 60", "instant": true } ],
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "decimals": 0 } }
+    },
+    {
+      "type": "row", "title": "Container resources", "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU (cores)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service=~\"$service\"}[1m]))",
+          "legendFormat": "{{container_label_com_docker_compose_service}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 2, "custom": { "fillOpacity": 10 } } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory (working set)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (container_label_com_docker_compose_service) (container_memory_working_set_bytes{container_label_com_docker_compose_service=~\"$service\"})",
+          "legendFormat": "{{container_label_com_docker_compose_service}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10 } } },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] } }
+    },
+    {
+      "type": "bargauge",
+      "title": "Memory used vs limit",
+      "description": "Working set as a share of each container's mem_limit. Near 100% means the safety-rail limit is close.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (container_label_com_docker_compose_service) (container_memory_working_set_bytes{container_label_com_docker_compose_service=~\"$service\"}) / max by (container_label_com_docker_compose_service) (container_spec_memory_limit_bytes{container_label_com_docker_compose_service=~\"$service\"} > 0)",
+          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "instant": true
+        }
+      ],
+      "options": { "orientation": "horizontal", "displayMode": "gradient", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.75 }, { "color": "red", "value": 0.9 } ] }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network (bytes/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 15 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (container_label_com_docker_compose_service) (rate(container_network_receive_bytes_total{container_label_com_docker_compose_service=~\"$service\"}[1m]))",
+          "legendFormat": "{{container_label_com_docker_compose_service}} in"
+        },
+        {
+          "refId": "B",
+          "expr": "-sum by (container_label_com_docker_compose_service) (rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service=~\"$service\"}[1m]))",
+          "legendFormat": "{{container_label_com_docker_compose_service}} out"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps", "custom": { "fillOpacity": 5 } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "row", "title": "Postgres", "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Connections",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 23 },
+      "targets": [ { "refId": "A", "expr": "sum by (datname) (pg_stat_database_numbackends{datname=~\"duckstore|range_control\"})", "legendFormat": "{{datname}}" } ],
+      "fieldConfig": { "defaults": { "decimals": 0 } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Transactions / s",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 23 },
+      "targets": [
+        { "refId": "A", "expr": "sum by (datname) (rate(pg_stat_database_xact_commit_total{datname=~\"duckstore|range_control\"}[1m]))", "legendFormat": "{{datname}} commits" },
+        { "refId": "B", "expr": "sum by (datname) (rate(pg_stat_database_xact_rollback_total{datname=~\"duckstore|range_control\"}[1m]))", "legendFormat": "{{datname}} rollbacks" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "type": "stat",
+      "title": "Database size",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 23 },
+      "targets": [ { "refId": "A", "expr": "pg_database_size_bytes{datname=~\"duckstore|range_control\"}", "legendFormat": "{{datname}}", "instant": true } ],
+      "options": { "colorMode": "none", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "row", "title": "Logs", "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }
+    },
+    {
+      "type": "logs",
+      "title": "Errors and failures",
+      "description": "Lines mentioning error, fatal, fail or panic from any range container.",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 31 },
+      "targets": [ { "refId": "A", "expr": "{service_namespace=\"cyber-ducks\", service_name=~\"$service\"} |~ \"(?i)(error|fatal|fail|panic)\"" } ],
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true }
+    },
+    {
+      "type": "logs",
+      "title": "All logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 40 },
+      "targets": [ { "refId": "A", "expr": "{service_namespace=\"cyber-ducks\", service_name=~\"$service\"}" } ],
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true }
+    }
+  ]
+}

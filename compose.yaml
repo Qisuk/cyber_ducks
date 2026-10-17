@@ -4,9 +4,20 @@
 
 name: cyber-ducks
 
+# Every container logs to Docker's json-file driver. The `labels` option copies these container
+# labels into each log line, so the collector knows which service and trust zone it came from.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+    labels: "com.docker.compose.project,com.docker.compose.service,range.zone"
+
 services:
+  # --- Z5 Data ----------------------------------------------------------------------------
   postgres:
     image: postgres:18
+    labels: { range.zone: Z5 }
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -17,6 +28,7 @@ services:
       RANGE_CONTROL_PASSWORD: ${RANGE_CONTROL_PASSWORD}
       FLAGS_READER_PASSWORD: ${FLAGS_READER_PASSWORD}
       BACKUP_READER_PASSWORD: ${BACKUP_READER_PASSWORD}
+      METRICS_READER_PASSWORD: ${METRICS_READER_PASSWORD}
     ports:
       # Bound to localhost only, never 0.0.0.0. Exposed so you can explore the DB with psql/pgAdmin.
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
@@ -38,12 +50,15 @@ services:
     # Safety rail: resource limits stay on even when the range is "vulnerable".
     mem_limit: 512m
     cpus: 1.0
+    logging: *logging
     restart: unless-stopped
     networks: [range]
 
-  # Scheduled pg_dump of duckstore into the pgbackups volume (zone Z6, flow F17).
+  # --- Z6 Backups -------------------------------------------------------------------------
+  # Scheduled pg_dump of duckstore into the pgbackups volume (flow F17).
   backup:
     image: postgres:18
+    labels: { range.zone: Z6 }
     entrypoint: ["bash", "/backup-scripts/backup.sh"]
     environment:
       PGHOST: postgres
@@ -59,6 +74,99 @@ services:
         condition: service_healthy
     mem_limit: 128m
     cpus: 0.5
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
+  # --- Z8 Observability -------------------------------------------------------------------
+  # Grafana + Loki (logs) + Prometheus (metrics) + Tempo (traces) in one image.
+  lgtm:
+    image: grafana/otel-lgtm:0.34.0
+    labels: { range.zone: Z8 }
+    environment:
+      # VULNERABLE DEFAULT (decision 4): anyone reaching Grafana is an anonymous Admin.
+      # Becomes an infra-kind defence toggle later (ADR-0011).
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      ENABLE_LOGS_GRAFANA: "true"   # send Grafana's own logs to stdout (and so to Loki)
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      # Telemetry survives restarts: the wargame needs evidence (decision 5).
+      - lgtmdata:/data
+      - ./infra/grafana/dashboards:/otel-lgtm/range-dashboards:ro
+      - ./infra/grafana/range-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/range.yaml:ro
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+    mem_limit: 2g
+    cpus: 2.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
+  # Single entry point for all telemetry (decision 1). No published ports: internal only.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    labels: { range.zone: Z8 }
+    command: ["--config=/etc/otelcol/collector.yaml"]
+    # Root is needed to read Docker's log files (decision 2). A telemetry agent with host
+    # read access is a high-value target: see the threat model (Z8).
+    user: "0:0"
+    volumes:
+      - ./infra/otel/collector.yaml:/etc/otelcol/collector.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - otelcol-state:/var/lib/otelcol/file_storage
+    depends_on:
+      lgtm:
+        condition: service_healthy
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
+  # Per-container CPU/memory/network metrics (decision 3). Needs read-only host access;
+  # no published port.
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.6
+    labels: { range.zone: Z8 }
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=15s
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service,range.zone
+      - --disable_metrics=percpu,sched,tcp,udp,advtcp,hugetlb,referenced_memory,cpu_topology,resctrl
+    privileged: true
+    devices: ["/dev/kmsg"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
+  # Database health metrics, read with the pg_monitor-only metrics_reader role.
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    labels: { range.zone: Z8 }
+    environment:
+      DATA_SOURCE_URI: "postgres:5432/duckstore?sslmode=disable"
+      DATA_SOURCE_USER: metrics_reader
+      DATA_SOURCE_PASS: ${METRICS_READER_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 64m
+    cpus: 0.25
+    logging: *logging
     restart: unless-stopped
     networks: [range]
 
@@ -69,3 +177,5 @@ networks:
 volumes:
   pgdata: {}
   pgbackups: {}
+  lgtmdata: {}
+  otelcol-state: {}

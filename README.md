@@ -40,6 +40,8 @@ Needs Docker Desktop. Copy `.env.example` to `.env` first (all values are fake r
 | Stop (keep data) | `docker compose down` |
 | Reset everything (re-seed on next start) | `docker compose down -v` |
 | Explore the database | `psql -h 127.0.0.1 -U duckadmin -d duckstore` (password in `.env`) |
+| Telemetry (Grafana) | http://127.0.0.1:3000 → Dashboards → Cyber Ducks → **Range health** |
+| Reload Grafana dashboards after editing `infra/grafana/dashboards/*.json` | `docker compose restart lgtm` |
 | Take a backup now | `docker compose exec backup bash /backup-scripts/backup.sh --once` |
 | Restore the latest backup | `docker compose exec postgres bash /backup-scripts/restore.sh` |
 | Restore a specific backup | `docker compose exec postgres bash /backup-scripts/restore.sh duckstore-<timestamp>.dump` |
@@ -49,4 +51,4 @@ Needs Docker Desktop. Copy `.env.example` to `.env` first (all values are fake r
 
 ## Status
 
-Phase 1 (skeleton): Postgres with schema, guards, seed data and backups. See [docs/architecture.md](docs/architecture.md).
+Phases 1–2 done: Postgres (schema, guards, seed, backups) and the telemetry stack (Grafana "Range health"). See [docs/architecture.md](docs/architecture.md).
