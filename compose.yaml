@@ -11,6 +11,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Passwords for the service roles created by 01-roles.sh.
+      STORE_OWNER_PASSWORD: ${STORE_OWNER_PASSWORD}
+      STORE_APP_PASSWORD: ${STORE_APP_PASSWORD}
+      RANGE_CONTROL_PASSWORD: ${RANGE_CONTROL_PASSWORD}
+      FLAGS_READER_PASSWORD: ${FLAGS_READER_PASSWORD}
     ports:
       # Bound to localhost only, never 0.0.0.0. Exposed so you can explore the DB with psql/pgAdmin.
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
