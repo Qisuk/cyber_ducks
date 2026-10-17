@@ -27,6 +27,15 @@
     </div>
     <p class="text-body-secondary">Placed @_order.CreatedAt.ToString("d MMMM yyyy")@(_order.ShippedAt is { } s ? $" · shipped {s:d MMM yyyy}" : "")</p>
 
+    @* The cancel button is only shown before an order ships. The server is what should enforce this
+       (VULN-LOGIC-02): hiding the button is not a control. *@
+    @if (_order.Status is "placed" or "paid")
+    {
+        <form method="post" action="/orders/@_order.Id/cancel" class="mb-3">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Cancel order</button>
+        </form>
+    }
+
     <div class="row g-4">
         <div class="col-md-8">
             <table class="table">

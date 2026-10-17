@@ -48,6 +48,7 @@ builder.Services.AddDefence<IOrderAccess, VulnerableOrderAccess, SecureOrderAcce
 builder.Services.AddDefence<IProductSearch, VulnerableProductSearch, SecureProductSearch>("VULN-SQLI-01");
 builder.Services.AddDefence<IProfileUpdate, VulnerableProfileUpdate, SecureProfileUpdate>("VULN-MASS-01");
 builder.Services.AddDefence<IOrderPricing, VulnerableOrderPricing, SecureOrderPricing>("VULN-LOGIC-01");
+builder.Services.AddDefence<IOrderCancellation, VulnerableOrderCancellation, SecureOrderCancellation>("VULN-LOGIC-02");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

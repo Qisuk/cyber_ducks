@@ -41,7 +41,38 @@ public static class OrderEndpoints
         // Place an order. Line pricing is behind VULN-LOGIC-01 (IOrderPricing).
         orders.MapPost("/", PlaceOrderAsync);
 
+        // Cancel an order. Ownership is VULN-IDOR-01 (IOrderAccess); the state check is VULN-LOGIC-02.
+        orders.MapPost("/{id:int}/cancel", CancelOrderAsync);
+
         return app;
+    }
+
+    private static async Task<IResult> CancelOrderAsync(
+        int id, ClaimsPrincipal principal, StoreDbContext db,
+        IOrderAccess access, IOrderCancellation cancellation, CancellationToken ct)
+    {
+        var found = await access.FindAsync(id, CurrentUserId(principal), ct);
+        if (found is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (!cancellation.CanCancel(found))
+        {
+            return Results.Conflict(new { message = $"Order {found.Id} can no longer be cancelled (status: {found.Status})." });
+        }
+
+        // Load tracked, so the change is saved. A DB guard (orders_no_cancel_after_ship) can still
+        // reject this at the database if the order has shipped.
+        var order = await db.Orders.Include(o => o.Invoice).SingleAsync(o => o.Id == found.Id, ct);
+        order.Status = "cancelled";
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        if (order.Invoice is { Status: "open" } invoice)
+        {
+            invoice.Status = "void";
+        }
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { order.Id, order.Status });
     }
 
     private static async Task<IResult> PlaceOrderAsync(

@@ -111,6 +111,13 @@ public static class AccountEndpoints
             return Results.LocalRedirect($"/orders/{result.OrderId}?placed=true");
         }).DisableAntiforgery().RequireAuthorization();
 
+        // Cancel an order, then back to it.
+        app.MapPost("/orders/{id:int}/cancel", async (int id, StoreApiClient api) =>
+        {
+            await api.CancelOrderAsync(id);
+            return Results.LocalRedirect($"/orders/{id}");
+        }).DisableAntiforgery().RequireAuthorization();
+
         return account;
     }
 

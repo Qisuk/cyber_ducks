@@ -46,6 +46,12 @@ public sealed class StoreApiClient(HttpClient http)
     public async Task<IReadOnlyList<ProductSummary>> SearchProductsAsync(string query, CancellationToken ct = default) =>
         await http.GetFromJsonAsync<List<ProductSummary>>($"api/products/search?q={Uri.EscapeDataString(query)}", ct) ?? [];
 
+    public async Task<bool> CancelOrderAsync(int orderId, CancellationToken ct = default)
+    {
+        using var response = await http.PostAsync($"api/orders/{orderId}/cancel", null, ct);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<bool> PostReviewAsync(int productId, PostReviewRequest request, CancellationToken ct = default)
     {
         using var response = await http.PostAsJsonAsync($"api/products/{productId}/reviews", request, ct);
