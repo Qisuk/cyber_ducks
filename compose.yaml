@@ -124,7 +124,36 @@ services:
     cpus: 1.0
     logging: *logging
     restart: unless-stopped
-    networks: [range]
+    # On both networks: the store reaches it over `range`, range-control over the isolated `ops`.
+    networks: [range, ops]
+
+  # --- Z9 Range control -------------------------------------------------------------------
+  # The defence-toggle panel (ADR-0008/0011). NOT an attack target: it sits on the isolated `ops`
+  # network, so store services (on `range`) cannot reach it, while it can still reach postgres.
+  range-control:
+    build: { context: ., dockerfile: src/RangeControl/Dockerfile }
+    image: cyber-ducks/range-control:dev
+    labels: { range.zone: Z9, range.logs: otlp }
+    environment:
+      ConnectionStrings__RangeControl: Host=postgres;Database=range_control;Username=range_control_owner;Password=${RANGE_CONTROL_PASSWORD}
+      ConnectionStrings__Duckstore: Host=postgres;Database=duckstore;Username=range_control_owner;Password=${RANGE_CONTROL_PASSWORD}
+      Facilitator__Password: ${FACILITATOR_PASSWORD}
+      DataProtection__KeyPath: /keys
+      <<: *otel
+      OTEL_SERVICE_NAME: range-control
+      OTEL_RESOURCE_ATTRIBUTES: range.zone=Z9,service.namespace=cyber-ducks
+    ports:
+      - "127.0.0.1:${RANGE_CONTROL_PORT:-8090}:8080"
+    volumes:
+      - rangectlkeys:/keys
+    healthcheck: *http-health
+    depends_on:
+      postgres: { condition: service_healthy }
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *logging
+    restart: unless-stopped
+    networks: [ops]
 
   # --- Z6 Backups -------------------------------------------------------------------------
   # Scheduled pg_dump of duckstore into the pgbackups volume (flow F17).
@@ -198,7 +227,8 @@ services:
     cpus: 0.5
     logging: *logging
     restart: unless-stopped
-    networks: [range]
+    # Also on ops so range-control (isolated) can still ship its telemetry here.
+    networks: [range, ops]
 
   # Per-container CPU/memory/network metrics (decision 3). Needs read-only host access;
   # no published port.
@@ -243,12 +273,16 @@ services:
     networks: [range]
 
 networks:
-  # Single flat network for the alpha. Splitting it into trust zones is a Phase 8 defence exercise.
+  # The store and its dependencies. Finer segmentation (DMZ vs internal) is a Phase 8 exercise.
   range: {}
+  # Range control is kept off `range`, so store services can't reach the defence-toggle panel
+  # (ADR-0011). Postgres and the collector bridge both; range-control sits here alone.
+  ops: {}
 
 volumes:
   pgdata: {}
   pgbackups: {}
   webkeys: {}
+  rangectlkeys: {}
   lgtmdata: {}
   otelcol-state: {}

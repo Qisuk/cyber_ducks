@@ -81,7 +81,7 @@ every app service sends OTLP.
 | 1 | Skeleton: compose, Postgres schema + seed | ✓ | Done |
 | 2 | Telemetry stack + container health | ✓ | Done: "Range health" dashboard |
 | 3 | Store API + UI with local login | ✓ | Done: 9 toggles (PWD, AUTH, IDOR, SQLI, INFO, MASS, XSS, CSRF, SESSION); DBROLE deferred to Phase 4 |
-| 4 | Order lifecycle: cancel, invoices, payment stub, staff shipping | ✓ (minimal) | |
+| 4 | Order lifecycle + range-control panel | ✓ (minimal) | **In progress**: range-control panel done |
 | 5 | OAuth via Keycloak ("Google"/"Meta") | | |
 | 6 | AI agent + agent-tools, swappable LLM (ADR-0010) | ✓ | |
 | 7 | Arm the range: vulnerability catalogue + attack scripts | | |

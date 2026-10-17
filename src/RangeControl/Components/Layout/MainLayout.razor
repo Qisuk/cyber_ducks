@@ -1,0 +1,24 @@
+﻿@inherits LayoutComponentBase
+
+<div class="rc-shell">
+    <header class="rc-header d-flex justify-content-between align-items-center px-4 py-2">
+        <a class="rc-brand" href="">🦆 Range Control</a>
+        <AuthorizeView>
+            <Authorized>
+                <form method="post" action="/account/logout" class="m-0">
+                    <span class="small me-2 text-light-emphasis">facilitator</span>
+                    <button class="btn btn-sm btn-outline-light" type="submit">Sign out</button>
+                </form>
+            </Authorized>
+        </AuthorizeView>
+    </header>
+    <main class="rc-main px-4 py-4">
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

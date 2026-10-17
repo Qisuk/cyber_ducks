@@ -45,7 +45,7 @@ services:
   cadvisor:       { zone: Z8,  kind: container, tech: ghcr.io/google/cadvisor:v0.60.6,  alpha: true,  status: implemented,
                     note: "privileged, read-only host mounts" }
   postgres-exporter: { zone: Z8, kind: container, tech: prometheuscommunity/postgres-exporter:v0.20.1, alpha: true, status: implemented }
-  range-control:  { zone: Z9,  kind: container, tech: .NET 10 Blazor,                   alpha: true,  status: planned,
+  range-control:  { zone: Z9,  kind: container, tech: .NET 10 Blazor (interactive server),  alpha: true,  status: implemented,
                     note: "grows into ops-console (ADR-0008, ADR-0011)" }
 
 flows:

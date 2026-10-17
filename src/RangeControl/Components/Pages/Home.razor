@@ -1,0 +1,137 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject FlagAdminService Admin
+
+<PageTitle>Range Control</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-0">Defence toggles</h1>
+        <p class="text-secondary small mb-0">Flip a defence on or off. Changes reach the range within seconds.</p>
+    </div>
+    <div class="btn-group">
+        <button class="btn btn-outline-danger" @onclick='() => ApplyPreset("All vulnerable")'>All vulnerable</button>
+        <button class="btn btn-outline-success" @onclick='() => ApplyPreset("All secure")'>All secure</button>
+    </div>
+</div>
+
+@if (_flags is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-lg-8">
+            @foreach (var group in _flags.GroupBy(f => f.Kind))
+            {
+                <h2 class="h6 text-uppercase text-secondary mt-3">@KindLabel(group.Key)</h2>
+                <div class="list-group mb-2">
+                    @foreach (var flag in group)
+                    {
+                        var secure = flag.Mode == "secure";
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold">@flag.Title</div>
+                                <code class="small text-secondary">@flag.VulnId</code>
+                                @if (flag.RequiresRestart)
+                                {
+                                    <span class="badge text-bg-warning ms-1">restart</span>
+                                }
+                            </div>
+                            <div class="form-check form-switch fs-5">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       checked="@secure" @onchange="() => ToggleFlag(flag)" />
+                                <span class="badge @(secure ? "text-bg-success" : "text-bg-danger") align-middle">
+                                    @(secure ? "secure" : "vulnerable")
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <h2 class="h6 text-uppercase text-secondary mt-4">Database guards</h2>
+            <p class="text-secondary small">A second layer of defence enforced in Postgres itself.</p>
+            <div class="list-group">
+                @foreach (var guard in _guards)
+                {
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <code class="small">@guard.Guard</code>
+                        <div class="form-check form-switch fs-5">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   checked="@guard.Enabled" @onchange="() => ToggleGuard(guard)" />
+                            <span class="badge @(guard.Enabled ? "text-bg-success" : "text-bg-secondary") align-middle">
+                                @(guard.Enabled ? "on" : "off")
+                            </span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <h2 class="h6 text-uppercase text-secondary mt-3">Recent changes</h2>
+            @if (_changes.Count == 0)
+            {
+                <p class="text-secondary small">No changes yet.</p>
+            }
+            else
+            {
+                <ul class="list-unstyled small">
+                    @foreach (var change in _changes)
+                    {
+                        <li class="mb-2">
+                            <span class="text-secondary">@change.ChangedAt.ToLocalTime().ToString("HH:mm:ss")</span>
+                            <code>@change.VulnId</code>
+                            @change.OldMode → <strong>@change.NewMode</strong>
+                            <span class="text-secondary">(@change.ChangedBy)</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<DefenceFlag>? _flags;
+    private IReadOnlyList<GuardState> _guards = [];
+    private IReadOnlyList<FlagChange> _changes = [];
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        _flags = await Admin.GetFlagsAsync();
+        _guards = await Admin.GetGuardsAsync();
+        _changes = await Admin.GetRecentChangesAsync();
+    }
+
+    private async Task ToggleFlag(DefenceFlag flag)
+    {
+        await Admin.SetFlagAsync(flag.VulnId, flag.Mode == "secure" ? "vulnerable" : "secure", "facilitator");
+        await RefreshAsync();
+    }
+
+    private async Task ToggleGuard(GuardState guard)
+    {
+        await Admin.SetGuardAsync(guard.Guard, !guard.Enabled);
+        await RefreshAsync();
+    }
+
+    private async Task ApplyPreset(string name)
+    {
+        await Admin.ApplyPresetAsync(name, "facilitator");
+        await RefreshAsync();
+    }
+
+    private static string KindLabel(string kind) => kind switch
+    {
+        "code" => "Code-path defences",
+        "data" => "Data & schema defences",
+        "infra" => "Infrastructure defences",
+        _ => kind,
+    };
+}

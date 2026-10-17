@@ -1,0 +1,24 @@
+@page "/login"
+@using Microsoft.AspNetCore.Authorization
+@attribute [AllowAnonymous]
+
+<PageTitle>Range Control — sign in</PageTitle>
+
+<div class="login-wrap">
+    <form method="post" action="/account/login" class="login-card">
+        <h1 class="h4 mb-1">🦆 Range Control</h1>
+        <p class="text-secondary small mb-3">Facilitator access</p>
+        @if (Error is not null)
+        {
+            <div class="alert alert-danger py-2">Incorrect password.</div>
+        }
+        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+        <input class="form-control mb-2" type="password" name="password" placeholder="Facilitator password" required autofocus />
+        <button class="btn btn-dark w-100" type="submit">Sign in</button>
+    </form>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+}
