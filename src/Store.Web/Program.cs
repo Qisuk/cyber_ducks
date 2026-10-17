@@ -1,6 +1,7 @@
 using CyberDucks.Shared.Defences;
 using CyberDucks.Shared.Telemetry;
 using Store.Web.Components;
+using Store.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +13,7 @@ builder.Services.AddDefenceFlags(builder.Configuration);
 builder.Services.AddRazorComponents();
 
 // Typed access to store-api (flow F4). Base address from StoreApi:BaseUrl.
-builder.Services.AddHttpClient("store-api", client =>
+builder.Services.AddHttpClient<StoreApiClient>(client =>
     client.BaseAddress = new Uri(builder.Configuration["StoreApi:BaseUrl"]
         ?? throw new InvalidOperationException("StoreApi:BaseUrl is not configured.")));
 

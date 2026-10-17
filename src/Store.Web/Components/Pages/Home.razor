@@ -1,43 +1,60 @@
 ﻿@page "/"
-@inject IHttpClientFactory HttpClients
+@inject StoreApiClient Api
 
 <PageTitle>Rubber Duck Emporium</PageTitle>
 
-<h1>Rubber Duck Emporium</h1>
-<p class="lead">Quality rubber ducks for debuggers, defenders and the occasional pirate.</p>
-
-<div class="card mt-4" style="max-width: 32rem">
-    <div class="card-body">
-        <h2 class="h6 card-title">System check</h2>
-        @if (_ping is null)
-        {
-            <p class="text-danger mb-0">store-api unreachable: @_error</p>
-        }
-        else
-        {
-            <p class="mb-0">
-                <span class="text-success">●</span> store-api is up.
-                Database time: @_ping.DatabaseTime.ToString("u")
-            </p>
-        }
+<section class="hero rounded-4 p-4 p-md-5 mb-5 d-flex flex-column flex-md-row align-items-center gap-4">
+    <div class="flex-grow-1">
+        <h1 class="display-5 fw-bold">Rubber Duck Emporium</h1>
+        <p class="lead">Quality rubber ducks for debuggers, defenders and the occasional pirate.</p>
+        <a class="btn btn-warning btn-lg" href="ducks">Shop all ducks</a>
     </div>
+    <DuckPicture Sku="DUCK-DEBUG" Name="Debugger Duck" Size="220" />
+</section>
+
+<h2 class="h4 mb-3">Featured</h2>
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-5">
+    @foreach (var duck in _featured)
+    {
+        <div class="col">
+            <a class="card h-100 duck-card text-decoration-none text-body text-center p-3" href="ducks/@duck.Id">
+                <DuckPicture Sku="@duck.Sku" Name="@duck.Name" Size="110" />
+                <div class="mt-2 small fw-semibold">@duck.Name</div>
+                <div class="small">@duck.Price.ToString("C", Gbp)</div>
+            </a>
+        </div>
+    }
 </div>
 
+<p class="small text-body-secondary">
+    @if (_ping is null)
+    {
+        <span class="text-danger">●</span> <text>store-api unreachable: @_error</text>
+    }
+    else
+    {
+        <span class="text-success">●</span> <text>All systems quacking. Database time @_ping.DatabaseTime.ToString("u")</text>
+    }
+</p>
+
 @code {
-    private PingResponse? _ping;
+    private static readonly string[] FeaturedSkus = ["DUCK-DEBUG", "DUCK-HOODIE", "DUCK-ZERODAY", "DUCK-GOLD"];
+
+    private IReadOnlyList<ProductSummary> _featured = [];
+    private StoreApiClient.PingResponse? _ping;
     private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            _ping = await HttpClients.CreateClient("store-api").GetFromJsonAsync<PingResponse>("api/ping");
+            var all = await Api.GetProductsAsync();
+            _featured = all.Where(d => FeaturedSkus.Contains(d.Sku)).ToList();
+            _ping = await Api.PingAsync();
         }
         catch (Exception ex)
         {
             _error = ex.Message;
         }
     }
-
-    private sealed record PingResponse(string Service, DateTime DatabaseTime);
 }

@@ -1,0 +1,34 @@
+@page "/ducks"
+@inject StoreApiClient Api
+
+<PageTitle>All ducks · Rubber Duck Emporium</PageTitle>
+
+<h1>All ducks</h1>
+<p class="text-body-secondary">@_ducks.Count ducks, all hand-squeezed for quality.</p>
+
+<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    @foreach (var duck in _ducks)
+    {
+        <div class="col">
+            <a class="card h-100 duck-card text-decoration-none text-body" href="ducks/@duck.Id">
+                <div class="card-img-top duck-card-picture">
+                    <DuckPicture Sku="@duck.Sku" Name="@duck.Name" Size="140" />
+                </div>
+                <div class="card-body">
+                    <h2 class="h6 card-title mb-1">@duck.Name</h2>
+                    <Stars Rating="duck.AverageRating" Count="duck.ReviewCount" />
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center bg-transparent">
+                    <span class="fw-semibold">@duck.Price.ToString("C", Gbp)</span>
+                    <StockBadge Stock="duck.Stock" />
+                </div>
+            </a>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<ProductSummary> _ducks = [];
+
+    protected override async Task OnInitializedAsync() => _ducks = await Api.GetProductsAsync();
+}

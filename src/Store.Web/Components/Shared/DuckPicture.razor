@@ -1,0 +1,45 @@
+@* A rubber duck drawn as inline SVG, coloured per product. Stands in for real product photos. *@
+
+<svg class="duck-picture" viewBox="0 0 120 100" role="img" aria-label="@Name" width="@Size" height="@(Size * 100 / 120)">
+    <ellipse cx="60" cy="88" rx="44" ry="6" fill="#000" opacity="0.08" />
+    <path d="M14 62 C14 44 34 40 52 46 C58 30 68 20 82 20 C98 20 106 32 104 44 C102 52 96 56 90 58
+             C98 62 104 70 100 78 C94 88 74 90 56 90 C32 90 14 82 14 62 Z" fill="@_colours.Body" />
+    <path d="M100 40 L118 44 L100 50 Z" fill="@_colours.Beak" />
+    <circle cx="88" cy="34" r="4.5" fill="#222" />
+    <circle cx="89.5" cy="32.5" r="1.4" fill="#fff" />
+    <path d="M30 60 C40 52 56 54 62 64 C52 70 38 70 30 60 Z" fill="@_colours.Wing" />
+    @if (_colours.Accent is not null)
+    {
+        <path d="M66 22 C74 12 94 12 100 24 C90 20 76 20 66 22 Z" fill="@_colours.Accent" />
+    }
+</svg>
+
+@code {
+    [Parameter, EditorRequired] public string Sku { get; set; } = "";
+    [Parameter] public string Name { get; set; } = "Rubber duck";
+    [Parameter] public int Size { get; set; } = 120;
+
+    private Palette _colours = Default;
+
+    private static readonly Palette Default = new("#ffd23f", "#f28c28", "#f2c230", null);
+
+    private static readonly Dictionary<string, Palette> Palettes = new()
+    {
+        ["DUCK-DEBUG"] = new("#ffd23f", "#f28c28", "#f2c230", "#3b82f6"),
+        ["DUCK-PIRATE"] = new("#ffd23f", "#f28c28", "#f2c230", "#1f1f1f"),
+        ["DUCK-NINJA"] = new("#2b2b2b", "#f28c28", "#1a1a1a", "#c0392b"),
+        ["DUCK-HOODIE"] = new("#4b5563", "#f28c28", "#374151", "#22c55e"),
+        ["DUCK-FIREWALL"] = new("#e4572e", "#ffd23f", "#c2410c", "#7c2d12"),
+        ["DUCK-PHISH"] = new("#60a5fa", "#f28c28", "#3b82f6", null),
+        ["DUCK-HONEYPOT"] = new("#f59e0b", "#b45309", "#d97706", null),
+        ["DUCK-CRYPTO"] = new("#8b5cf6", "#f28c28", "#7c3aed", "#22d3ee"),
+        ["DUCK-PATCH"] = new("#ffd23f", "#f28c28", "#f2c230", "#0ea5e9"),
+        ["DUCK-ZERODAY"] = new("#111827", "#ef4444", "#000000", "#ef4444"),
+        ["DUCK-GOLD"] = new("#d4af37", "#b8860b", "#c9a227", "#fff3b0"),
+    };
+
+    protected override void OnParametersSet() =>
+        _colours = Palettes.GetValueOrDefault(Sku, Default);
+
+    private sealed record Palette(string Body, string Beak, string Wing, string? Accent);
+}

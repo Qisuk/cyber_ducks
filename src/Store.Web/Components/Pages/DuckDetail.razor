@@ -1,0 +1,64 @@
+@page "/ducks/{Id:int}"
+@inject StoreApiClient Api
+@inject NavigationManager Navigation
+
+@if (_duck is not null)
+{
+    <PageTitle>@_duck.Name · Rubber Duck Emporium</PageTitle>
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="ducks">All ducks</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@_duck.Name</li>
+        </ol>
+    </nav>
+
+    <div class="row g-5">
+        <div class="col-md-5 text-center duck-detail-picture">
+            <DuckPicture Sku="@_duck.Sku" Name="@_duck.Name" Size="280" />
+        </div>
+        <div class="col-md-7">
+            <h1>@_duck.Name</h1>
+            <p class="mb-2"><Stars Rating="_duck.AverageRating" Count="_duck.Reviews.Count" /></p>
+            <p class="fs-3 fw-semibold mb-2">@_duck.Price.ToString("C", Gbp)</p>
+            <p><StockBadge Stock="_duck.Stock" /> <span class="text-body-secondary small ms-2">SKU @_duck.Sku</span></p>
+            <p class="lead">@_duck.Description</p>
+        </div>
+    </div>
+
+    <section class="mt-5" style="max-width: 48rem">
+        <h2 class="h4">Reviews</h2>
+        @if (_duck.Reviews.Count == 0)
+        {
+            <p class="text-body-secondary">No reviews yet.</p>
+        }
+        @foreach (var review in _duck.Reviews)
+        {
+            @* Author and Body are user-supplied. Razor HTML-encodes them here (the safe default);
+               VULN-XSS-01 adds a vulnerable rendering path in step 3d. *@
+            <article class="border-bottom py-3">
+                <div class="d-flex justify-content-between">
+                    <strong>@review.Author</strong>
+                    <span class="text-body-secondary small">@review.CreatedAt.ToString("d MMM yyyy")</span>
+                </div>
+                <Stars Rating="review.Rating" />
+                <p class="mb-0 mt-1">@review.Body</p>
+            </article>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private ProductDetail? _duck;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _duck = await Api.GetProductAsync(Id);
+        if (_duck is null)
+        {
+            Navigation.NotFound();
+        }
+    }
+}

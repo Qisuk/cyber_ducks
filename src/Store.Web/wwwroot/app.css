@@ -58,3 +58,38 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* --- Rubber Duck Emporium --- */
+.hero {
+    background: linear-gradient(135deg, #fff7d6 0%, #ffe7a3 100%);
+}
+
+.duck-card {
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.duck-card:hover,
+.duck-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .1);
+}
+
+.duck-card-picture,
+.duck-detail-picture {
+    background: #f6f8fb;
+    display: flex;
+    justify-content: center;
+    padding: 1rem 0;
+}
+
+.duck-detail-picture {
+    border-radius: 1rem;
+}
+
+.stars {
+    color: #f5a623;
+    letter-spacing: .05em;
+}
+
+.stars-empty {
+    color: #c9ced6;
+}

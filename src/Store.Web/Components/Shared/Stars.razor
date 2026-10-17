@@ -1,0 +1,22 @@
+@* Star rating, e.g. ★★★★☆. Rating may be fractional (an average); it is rounded to whole stars. *@
+
+@if (Rating is null)
+{
+    <span class="text-body-secondary small">No reviews yet</span>
+}
+else
+{
+    var whole = (int)Math.Round(Rating.Value);
+    <span class="stars" title="@Rating.Value.ToString("0.0") out of 5" aria-label="@Rating.Value.ToString("0.0") out of 5 stars">
+        @(new string('★', whole))<span class="stars-empty">@(new string('☆', 5 - whole))</span>
+    </span>
+    @if (Count is not null)
+    {
+        <span class="text-body-secondary small ms-1">(@Count)</span>
+    }
+}
+
+@code {
+    [Parameter] public double? Rating { get; set; }
+    [Parameter] public int? Count { get; set; }
+}

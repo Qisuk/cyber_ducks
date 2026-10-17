@@ -1,9 +1,12 @@
 using CyberDucks.Shared.Defences;
 using CyberDucks.Shared.Telemetry;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Npgsql;
 using OpenTelemetry;
+using Store.Api.Catalogue;
+using Store.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +18,11 @@ builder.Services.AddDefenceFlags(builder.Configuration);
 builder.Services.AddNpgsqlDataSource(
     builder.Configuration.GetConnectionString("Store")
         ?? throw new InvalidOperationException("ConnectionStrings:Store is not configured."));
+
+// EF Core shares the same pooled data source; the SQL init scripts own the schema (no migrations).
+builder.Services.AddDbContext<StoreDbContext>((sp, options) => options
+    .UseNpgsql(sp.GetRequiredService<NpgsqlDataSource>())
+    .UseSnakeCaseNamingConvention());
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
@@ -32,6 +40,8 @@ app.MapGet("/api/ping", async (NpgsqlDataSource db) =>
     var now = (DateTime)(await cmd.ExecuteScalarAsync())!;
     return Results.Ok(new { service = "store-api", databaseTime = now });
 });
+
+app.MapCatalogue();
 
 app.Run();
 
