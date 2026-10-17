@@ -17,6 +17,7 @@
 | `otel-collector` + `lgtm` | grafana/otel-lgtm           | Logs (Loki), traces (Tempo), metrics (Prometheus), Grafana | 1–1.5 GB |
 | `cadvisor`       | cAdvisor                             | Per-container health/resource metrics                 | 80 MB    |
 | `postgres-exporter` | prometheus-community              | Database health metrics                               | 30 MB    |
+| `backup`         | postgres:18 (`pg_dump`)              | Scheduled dumps of duckstore to the `pgbackups` volume (Z6); restore via `infra/backup/restore.sh` | 50 MB |
 | `ops-console`    | .NET 10 Blazor (interactive server)  | Wargame: infra map, injects, decision log, response actions. **Not an attack target** ([ADR-0008](decisions/0008-wargame-and-ops-console.md)). Starts life as `range-control` in the alpha: the defence-toggle panel ([ADR-0011](decisions/0011-runtime-defence-toggles.md)) | 150–200 MB |
 
 **Budget:** ~6.6–8.1 GB of the 9.7 GB Docker allocation. The LLM is the dominant cost; see

@@ -1,11 +1,13 @@
 {
   "name": "cyber-ducks-tooling",
   "private": true,
-  "description": "Repo tooling only (diagram rendering). Not part of the range.",
+  "description": "Repo tooling only (diagram rendering, topology checks). Not part of the range.",
   "scripts": {
-    "diagrams": "node scripts/render-diagrams.mjs"
+    "diagrams": "node scripts/render-diagrams.mjs",
+    "topology:check": "node scripts/check-topology.mjs"
   },
   "devDependencies": {
-    "@mermaid-js/mermaid-cli": "11.17.0"
+    "@mermaid-js/mermaid-cli": "11.17.0",
+    "yaml": "2.9.1"
   }
 }

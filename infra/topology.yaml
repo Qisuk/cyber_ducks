@@ -1,0 +1,82 @@
+# Cyber Ducks topology: single source of truth for zones, services, flows and trust boundaries.
+# Mirrors docs/architecture.md and threat-model.md §1.4. Planned uses:
+#   - the range-control / Ops Console infra map (ADR-0008)
+#   - generating docs/diagrams/data-flow.mmd (currently maintained by hand: keep both in sync)
+# status: implemented | planned     alpha: part of the alpha release (docs/architecture.md)
+
+version: 1
+
+zones:
+  Z1:  { name: Untrusted clients }
+  Z2:  { name: Edge }
+  Z3:  { name: Application }
+  Z3a: { name: Agent (untrusted), parent: Z3 }
+  Z3b: { name: Tool gateway, parent: Z3 }
+  Z4:  { name: LLM }
+  Z5:  { name: Data }
+  Z6:  { name: Backups }
+  Z7:  { name: External providers }
+  Z8:  { name: Observability }
+  Z9:  { name: Range control, attack_scope: false }
+
+services:
+  # Clients (not containers)
+  customer-browser: { zone: Z1, kind: client }
+  staff-browser:    { zone: Z1, kind: client }
+  facilitator:      { zone: Z9, kind: client }
+
+  proxy:          { zone: Z2,  kind: container, tech: nginx,                            alpha: true,  status: planned }
+  store-web:      { zone: Z3,  kind: container, tech: .NET 10 Blazor Web App,           alpha: true,  status: planned }
+  store-api:      { zone: Z3,  kind: container, tech: .NET 10 ASP.NET Core Web API,     alpha: true,  status: planned }
+  ai-agent:       { zone: Z3a, kind: container, tech: .NET 10 + Microsoft.Extensions.AI, alpha: true, status: planned }
+  agent-tools:    { zone: Z3b, kind: container, tech: .NET 10 + MCP C# SDK,             alpha: true,  status: planned }
+  ollama:         { zone: Z4,  kind: container, tech: ollama/ollama,                    alpha: true,  status: planned, profile: local-llm }
+  postgres:       { zone: Z5,  kind: container, tech: postgres:18,                      alpha: true,  status: implemented,
+                    databases: [duckstore, range_control] }
+  backup:         { zone: Z6,  kind: container, tech: postgres:18 (pg_dump),            alpha: true,  status: implemented,
+                    volume: pgbackups }
+  idp:            { zone: Z7,  kind: container, tech: Keycloak,                         alpha: false, status: planned }
+  payment-stub:   { zone: Z7,  kind: container, tech: .NET 10 minimal API,              alpha: true,  status: planned }
+  mailpit:        { zone: Z7,  kind: container, tech: axllent/mailpit,                  alpha: true,  status: planned }
+  otel-lgtm:      { zone: Z8,  kind: container, tech: grafana/otel-lgtm,                alpha: true,  status: planned }
+  range-control:  { zone: Z9,  kind: container, tech: .NET 10 Blazor,                   alpha: true,  status: planned,
+                    note: "grows into ops-console (ADR-0008, ADR-0011)" }
+
+flows:
+  - { id: F1,  from: customer-browser, to: proxy,         what: "page requests, forms, cookies", protocol: HTTP,        boundary: TB1 }
+  - { id: F2,  from: staff-browser,    to: proxy,         what: "staff UI requests, cookies", protocol: HTTP,        boundary: TB1 }
+  - { id: F3,  from: proxy,            to: store-web,     what: "forwarded requests", protocol: HTTP,        boundary: TB2 }
+  - { id: F4,  from: store-web,        to: store-api,     what: "API calls with the user's JWT", protocol: HTTP/REST,   boundary: null }
+  - { id: F5,  from: store-web,        to: ai-agent,      what: "chat message + user identity", protocol: HTTP,        boundary: TB5 }
+  - { id: F6,  from: ai-agent,         to: ollama,        what: "system prompt, history, tool results", protocol: HTTP,        boundary: TB4 }
+  - { id: F7,  from: ollama,           to: ai-agent,      what: "model output and tool-call requests", protocol: HTTP,        boundary: TB4 }
+  - { id: F8,  from: ai-agent,         to: agent-tools,   what: "tool name + arguments", protocol: MCP (HTTP),  boundary: TB5 }
+  - { id: F9,  from: ai-agent,         to: store-web,     what: "chat reply rendered to the customer", protocol: HTTP,        boundary: TB5 }
+  - { id: F10, from: store-api,        to: postgres,      what: "queries and results", protocol: SQL/TCP,     boundary: TB6 }
+  - { id: F11, from: customer-browser, to: idp,           what: "login, credentials, auth code redirect", protocol: HTTP redirects, boundary: TB3, bidirectional: true }
+  - { id: F12, from: store-api,        to: idp,           what: "code exchange, token validation", protocol: HTTP,        boundary: TB8 }
+  - { id: F13, from: store-api,        to: payment-stub,  what: "charge requests", protocol: HTTP,        boundary: TB8 }
+  - { id: F14, from: payment-stub,     to: store-api,     what: "payment result webhook", protocol: HTTP,        boundary: TB8 }
+  - { id: F15, from: store-api,        to: mailpit,       what: "emails (password resets, receipts)", protocol: SMTP,        boundary: TB8 }
+  - { id: F16, from: [store-web, store-api, ai-agent, agent-tools, payment-stub], to: otel-lgtm,
+      what: "logs, traces, metrics", protocol: OTLP, boundary: TB9 }
+  - { id: F17, from: postgres,         to: backup,        what: "database dumps (backup service pulls as backup_reader)", protocol: pg_dump, boundary: TB7 }
+  - { id: F18, from: facilitator,      to: range-control, what: "panel UI, flag changes, decisions", protocol: HTTP,        boundary: TB10 }
+  - { id: F19, from: range-control,    to: otel-lgtm,     what: "alert state queries", protocol: HTTP,        boundary: TB10 }
+  - { id: F20, from: range-control,    to: [store-api, postgres], what: "flag changes, guards, response actions", protocol: SQL / Docker API, boundary: TB10 }
+  - { id: F21, from: agent-tools,      to: ai-agent,      what: "tool results (may hold other users' text)", protocol: MCP (HTTP), boundary: TB5 }
+  - { id: F22, from: agent-tools,      to: store-api,     what: "API calls with the customer's token", protocol: HTTP/REST,   boundary: TB11 }
+  - { id: F23, from: store-api,        to: agent-tools,   what: "API responses", protocol: HTTP/REST,   boundary: TB11 }
+
+boundaries:
+  TB1:  { between: [Z1, Z2] }
+  TB2:  { between: [Z2, Z3] }
+  TB3:  { between: [Z1, Z7] }
+  TB4:  { between: [Z3a, Z4] }
+  TB5:  { between: [Z3a, Z3] }
+  TB6:  { between: [Z3, Z5] }
+  TB7:  { between: [Z5, Z6] }
+  TB8:  { between: [Z3, Z7] }
+  TB9:  { between: [Z3, Z8] }
+  TB10: { between: [Z9, all] }
+  TB11: { between: [Z3b, Z3] }

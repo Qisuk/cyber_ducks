@@ -6,7 +6,7 @@ empty**: the "seeded on first start" behaviour (ADR-0002). Design: [docs/data-mo
 
 | File | Purpose |
 |------|---------|
-| `01-roles.sh` | Service roles (passwords from `.env`), database access, the `range_control` database |
+| `01-roles.sh` | Service roles incl. `backup_reader` (passwords from `.env`), database access, the `range_control` database |
 | `02-schema.sql` | `duckstore` tables, owned by `store_owner`; least-privilege grants for `store_app` |
 | `03-guards.sql` | Toggleable database guards and `set_guard()` (all off by default) |
 | `04-range-control.sql` | `range_control` tables: defence flags, presets, change history + notify trigger |

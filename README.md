@@ -23,11 +23,30 @@ services, used to practise cyber/AI attack and defence, threat modelling, and in
 | Path          | Contents                                                        |
 |---------------|-----------------------------------------------------------------|
 | `docs/`       | Architecture, threat model, decision records (`docs/decisions`) |
-| `infra/`      | Docker Compose, Postgres init/seed scripts, telemetry & IdP config |
-| `src/`        | .NET 10 solution: Store.Web, Store.Api, Store.Agent, AgentTools, PaymentStub, OpsConsole |
+| `compose.yaml` | The range's Docker services                                    |
+| `infra/`      | Postgres init/seed scripts, backup scripts, `topology.yaml`; later telemetry & IdP config |
+| `src/`        | .NET 10 solution: Store.Web, Store.Api, Store.Agent, AgentTools, PaymentStub, RangeControl |
 | `attacks/`    | One folder per vulnerability: description, reproduction, expected telemetry |
 | `detections/` | Alert rules / queries that detect the attacks                   |
+| `scripts/`    | Repo tooling: diagram rendering, topology checks (`npm run diagrams`, `npm run topology:check`) |
+
+## Running the range
+
+Needs Docker Desktop. Copy `.env.example` to `.env` first (all values are fake range credentials).
+
+| Task | Command |
+|------|---------|
+| Start | `docker compose up -d` |
+| Stop (keep data) | `docker compose down` |
+| Reset everything (re-seed on next start) | `docker compose down -v` |
+| Explore the database | `psql -h 127.0.0.1 -U duckadmin -d duckstore` (password in `.env`) |
+| Take a backup now | `docker compose exec backup bash /backup-scripts/backup.sh --once` |
+| Restore the latest backup | `docker compose exec postgres bash /backup-scripts/restore.sh` |
+| Restore a specific backup | `docker compose exec postgres bash /backup-scripts/restore.sh duckstore-<timestamp>.dump` |
+
+**Git Bash on Windows** rewrites arguments that start with `/` into Windows paths, which breaks the
+`/backup-scripts/...` commands. Run them from PowerShell, or prefix them with `MSYS_NO_PATHCONV=1`.
 
 ## Status
 
-Phase 0: threat modelling & design. See [docs/architecture.md](docs/architecture.md).
+Phase 1 (skeleton): Postgres with schema, guards, seed data and backups. See [docs/architecture.md](docs/architecture.md).

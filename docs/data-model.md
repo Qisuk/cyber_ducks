@@ -51,6 +51,7 @@ Separate database. Store roles have no CONNECT privilege on it.
 | `store_app` | store-api in *secure* DB-role mode | Only the DML each table needs |
 | `range_control_owner` | range-control | Owns `range_control` |
 | `flags_reader` | All range services | `SELECT` on `range_control.defence_flags` only |
+| `backup_reader` | backup service | Built-in `pg_read_all_data`: reads everything, changes nothing |
 
 ## Seed data (deterministic)
 
