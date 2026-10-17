@@ -54,7 +54,9 @@ Separate database. Store roles have no CONNECT privilege on it.
 
 ## Seed data (deterministic)
 
-- **Personas:** Alice and Bob (customers), Eve (employee), Mallory (admin), Trent (auditor).
+- **Personas:** Alice, Bob, Carol and Dave (customers), Eve (employee), Mallory (admin), Trent (auditor).
+  Password columns are left empty by the seed: store-api sets persona passwords from `.env` on
+  first start (Phase 3), because computing both stored forms is application logic behind a toggle.
 - **Products:** 10–12 rubber ducks.
 - **Orders:** several per customer, covering every status, with invoices in each state.
 - **Defence flags:** one row per planned vuln ID, all `vulnerable`, plus the *all vulnerable* and
