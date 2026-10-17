@@ -22,6 +22,19 @@ else
         <dd class="col-sm-9"><span class="badge text-bg-secondary">@_me.Role</span></dd>
     </dl>
     <a class="btn btn-warning" href="orders">View my orders</a>
+
+    <hr class="my-4" style="max-width: 32rem" />
+
+    <form method="post" action="/account/profile" style="max-width: 32rem">
+        <h2 class="h5">Edit profile</h2>
+        <div class="mb-2">
+            <label class="form-label" for="displayName">Display name</label>
+            <input class="form-control" id="displayName" name="displayName" value="@_me.DisplayName" required />
+        </div>
+        @* The form only lets you change your name. The API is what decides whether anything else
+           in the request is honoured (VULN-MASS-01) — the classic test is adding a "role" field by hand. *@
+        <button class="btn btn-warning" type="submit">Save</button>
+    </form>
 }
 
 @code {

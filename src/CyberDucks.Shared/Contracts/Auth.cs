@@ -10,3 +10,6 @@ public sealed record RegisterRequest(string Email, string DisplayName, string Pa
 public sealed record AuthResult(string Token, DateTimeOffset ExpiresAt, UserInfo User);
 
 public sealed record UserInfo(int Id, string Email, string DisplayName, string Role);
+
+/// <summary>Profile edit. <see cref="Role"/> should never be honoured, but the vulnerable path does (VULN-MASS-01).</summary>
+public sealed record UpdateProfileRequest(string DisplayName, string? Role);

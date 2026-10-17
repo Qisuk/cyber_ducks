@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CyberDucks.Shared.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Store.Api.Data;
@@ -41,6 +42,39 @@ public static class CatalogueEndpoints
 
             return product is null ? Results.NotFound() : Results.Ok(product);
         });
+
+        // Posting a review. The body is stored as-is: the stored-XSS weakness (VULN-XSS-01) is in
+        // how store-web renders it, not how it's stored. Reviews are also the indirect
+        // prompt-injection carrier for the AI agent (threat TH8).
+        products.MapPost("/{id:int}/reviews", async Task<IResult> (
+            int id, PostReviewRequest request, ClaimsPrincipal principal,
+            StoreDbContext db, CancellationToken ct) =>
+        {
+            if (!await db.Products.AnyAsync(p => p.Id == id, ct))
+            {
+                return Results.NotFound();
+            }
+            if (request.Rating is < 1 or > 5)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["rating"] = ["Rating must be between 1 and 5."],
+                });
+            }
+
+            var userId = int.Parse(principal.FindFirstValue("sub")
+                ?? principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var review = new Data.ProductReview
+            {
+                ProductId = id,
+                UserId = userId,
+                Rating = (short)request.Rating,
+                Body = request.Body,
+            };
+            db.ProductReviews.Add(review);
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/products/{id}", new { review.Id });
+        }).RequireAuthorization();
 
         return app;
     }

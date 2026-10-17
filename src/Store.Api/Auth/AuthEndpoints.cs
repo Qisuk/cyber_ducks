@@ -22,8 +22,28 @@ public static class AuthEndpoints
         auth.MapPost("/register", RegisterAsync);
         auth.MapPost("/login", LoginAsync);
         auth.MapGet("/me", Me).RequireAuthorization();
+        auth.MapPut("/profile", UpdateProfileAsync).RequireAuthorization();
 
         return auth;
+    }
+
+    private static async Task<IResult> UpdateProfileAsync(
+        UpdateProfileRequest request, ClaimsPrincipal principal, StoreDbContext db,
+        IProfileUpdate update, JwtIssuer jwt, CancellationToken ct)
+    {
+        var id = int.Parse(principal.FindFirstValue("sub") ?? principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await db.Users.FindAsync([id], ct);
+        if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        // Which fields get bound is the VULN-MASS-01 decision.
+        update.Apply(user, request);
+        await db.SaveChangesAsync(ct);
+
+        // Re-issue the token so any role change takes effect immediately (realistic for the demo).
+        return IssueToken(jwt, user);
     }
 
     private static async Task<IResult> RegisterAsync(

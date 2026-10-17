@@ -46,6 +46,19 @@ public sealed class StoreApiClient(HttpClient http)
     public async Task<IReadOnlyList<ProductSummary>> SearchProductsAsync(string query, CancellationToken ct = default) =>
         await http.GetFromJsonAsync<List<ProductSummary>>($"api/products/search?q={Uri.EscapeDataString(query)}", ct) ?? [];
 
+    public async Task<bool> PostReviewAsync(int productId, PostReviewRequest request, CancellationToken ct = default)
+    {
+        using var response = await http.PostAsJsonAsync($"api/products/{productId}/reviews", request, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    /// <summary>Updates the profile. Returns the re-issued auth result (role may have changed).</summary>
+    public async Task<AuthResult?> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken ct = default)
+    {
+        using var response = await http.PutAsJsonAsync("api/auth/profile", request, ct);
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<AuthResult>(ct) : null;
+    }
+
     /// <summary>Attempts login. Returns the auth result, or an error message to show the user.</summary>
     public Task<(AuthResult? Result, string? Error)> LoginAsync(LoginRequest request, CancellationToken ct = default) =>
         PostAuthAsync("api/auth/login", request, ct);

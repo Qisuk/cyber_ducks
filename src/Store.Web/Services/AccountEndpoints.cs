@@ -39,6 +39,29 @@ public static class AccountEndpoints
             return Results.Redirect("/");
         });
 
+        // Profile edit. The API decides whether a role change is honoured (VULN-MASS-01); here we
+        // re-sign-in with the re-issued token so any change is reflected immediately.
+        account.MapPost("/profile", async (
+            HttpContext http, StoreApiClient api,
+            [FromForm] string displayName, [FromForm] string? role) =>
+        {
+            var result = await api.UpdateProfileAsync(new UpdateProfileRequest(displayName, role));
+            if (result is not null)
+            {
+                await SignInAsync(http, result);
+            }
+            return Results.LocalRedirect("/account");
+        }).RequireAuthorization();
+
+        // Post a review, then back to the product.
+        app.MapPost("/ducks/{id:int}/review", async (
+            int id, HttpContext http, StoreApiClient api,
+            [FromForm] int rating, [FromForm] string body) =>
+        {
+            await api.PostReviewAsync(id, new PostReviewRequest(rating, body));
+            return Results.LocalRedirect($"/ducks/{id}");
+        }).DisableAntiforgery().RequireAuthorization();
+
         return account;
     }
 
@@ -56,6 +79,12 @@ public static class AccountEndpoints
             return Results.Redirect(formPath + query);
         }
 
+        await SignInAsync(http, result);
+        return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+    }
+
+    private static async Task SignInAsync(HttpContext http, AuthResult result)
+    {
         var claims = new List<Claim>
         {
             new("sub", result.User.Id.ToString()),
@@ -69,7 +98,5 @@ public static class AccountEndpoints
         properties.StoreTokens([new AuthenticationToken { Name = "jwt", Value = result.Token }]);
 
         await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), properties);
-
-        return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
     }
 }
