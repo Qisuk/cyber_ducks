@@ -12,4 +12,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CyberDucks.Tests" />
+  </ItemGroup>
+
 </Project>

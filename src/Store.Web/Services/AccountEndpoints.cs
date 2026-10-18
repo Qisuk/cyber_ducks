@@ -228,7 +228,58 @@ public static class AccountEndpoints
         }
 
         await SignInAsync(http, result);
-        return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+        // returnUrl comes straight off the login form's hidden field, so it's caller-controlled.
+        // Resolve it to a guaranteed-local path first: LocalRedirect *throws* (→ HTTP 500) on any
+        // non-local value, and we'd rather drop an open-redirect attempt than crash the login post.
+        return Results.LocalRedirect(ResolveLocalReturnUrl(returnUrl));
+    }
+
+    /// <summary>
+    /// Returns a safe local redirect target for a caller-supplied <paramref name="returnUrl"/>,
+    /// falling back to "/" for anything missing or non-local. Mirrors the framework's own
+    /// local-URL rules (same as <c>IsLocalUrl</c>): a single leading "/" (but not "//" or "/\"),
+    /// or a "~/" virtual path, and no control characters. Guarantees the result is a value
+    /// <see cref="Results.LocalRedirect(string, bool, bool)"/> accepts without throwing.
+    /// </summary>
+    internal static string ResolveLocalReturnUrl(string? returnUrl)
+    {
+        if (string.IsNullOrEmpty(returnUrl) || ContainsControlCharacter(returnUrl))
+        {
+            return "/";
+        }
+
+        // "/foo" (absolute path, no host/authority) — reject "//host" and "/\host".
+        if (returnUrl[0] == '/')
+        {
+            if (returnUrl.Length == 1 || (returnUrl[1] != '/' && returnUrl[1] != '\\'))
+            {
+                return returnUrl;
+            }
+            return "/";
+        }
+
+        // "~/foo" (virtual path) — reject "~//" and "~/\".
+        if (returnUrl[0] == '~' && returnUrl.Length > 1 && returnUrl[1] == '/')
+        {
+            if (returnUrl.Length == 2 || (returnUrl[2] != '/' && returnUrl[2] != '\\'))
+            {
+                return returnUrl;
+            }
+        }
+
+        return "/";
+    }
+
+    private static bool ContainsControlCharacter(string value)
+    {
+        foreach (var c in value)
+        {
+            if (char.IsControl(c))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static async Task SignInAsync(HttpContext http, AuthResult result)
