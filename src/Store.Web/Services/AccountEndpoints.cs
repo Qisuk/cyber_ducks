@@ -172,6 +172,44 @@ public static class AccountEndpoints
             return Results.LocalRedirect($"/orders/{orderId}");
         }).DisableAntiforgery().RequireAuthorization();
 
+        // --- Ask the Duck (customer chat agent, flows F5/F9) ---
+        // A plain form post that waits for the agent's reply (tens of seconds on CPU), then shows
+        // the page again. Kept synchronous so every exchange is one inspectable/replayable request.
+        app.MapPost("/assistant/send", async (
+            HttpContext http, AgentClient agent, ChatHistory history, CsrfGuard csrf,
+            [FromForm] string message) =>
+        {
+            if (!await csrf.ValidateAsync(http))
+            {
+                return Results.BadRequest("Invalid anti-forgery token.");
+            }
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return Results.LocalRedirect("/assistant");
+            }
+
+            var prior = history.Get().Select(t => new AgentChatTurn(t.Role, t.Content)).ToList();
+            var (reply, error) = await agent.ChatAsync(new AgentChatRequest(message, prior), http.RequestAborted);
+            if (reply is null)
+            {
+                return Results.LocalRedirect($"/assistant?error={Uri.EscapeDataString(error!)}");
+            }
+            history.Append(
+                new ChatTurn("user", message, []),
+                new ChatTurn("assistant", reply.Reply, reply.ToolsUsed));
+            return Results.LocalRedirect("/assistant");
+        }).DisableAntiforgery().RequireAuthorization();
+
+        app.MapPost("/assistant/clear", async (HttpContext http, ChatHistory history, CsrfGuard csrf) =>
+        {
+            if (!await csrf.ValidateAsync(http))
+            {
+                return Results.BadRequest("Invalid anti-forgery token.");
+            }
+            history.Clear();
+            return Results.LocalRedirect("/assistant");
+        }).DisableAntiforgery().RequireAuthorization();
+
         return account;
     }
 

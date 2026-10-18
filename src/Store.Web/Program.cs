@@ -88,6 +88,17 @@ builder.Services.AddHttpClient<StoreApiClient>(client =>
         ?? throw new InvalidOperationException("StoreApi:BaseUrl is not configured.")))
     .AddHttpMessageHandler<JwtForwardingHandler>();
 
+// The customer chat agent (flow F5). Same JWT forwarding, so the agent acts as this customer.
+// CPU inference is slow: allow longer than the agent's own LLM timeout (Llm__TimeoutSeconds).
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ChatHistory>();
+builder.Services.AddHttpClient<AgentClient>(client =>
+    {
+        client.BaseAddress = new Uri(builder.Configuration["AiAgent:BaseUrl"] ?? "http://ai-agent:8080/");
+        client.Timeout = TimeSpan.FromSeconds(330);
+    })
+    .AddHttpMessageHandler<JwtForwardingHandler>();
+
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
