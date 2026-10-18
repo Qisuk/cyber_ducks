@@ -121,6 +121,8 @@ services:
       # Admin creds so store-web can set the redirect-URI policy at startup (VULN-OAUTH-02).
       Keycloak__AdminUser: ${KEYCLOAK_ADMIN_USER:-admin}
       Keycloak__AdminPassword: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Facilitator convenience link in the store nav (resolved by the host browser).
+      ExternalLinks__RangeControl: http://localhost:${RANGE_CONTROL_PORT:-8090}
       <<: *otel
       OTEL_SERVICE_NAME: store-web
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
@@ -404,6 +406,9 @@ services:
       # Flow F19: poll Grafana's firing detection alerts to drive the wargame's detected layer.
       # Grafana__ApiToken is only needed when anonymous access is off (VULN-GRAFANA-01 secure).
       Grafana__BaseUrl: http://lgtm:3000
+      # Launch-everything links in the Range Control nav (resolved by the host browser).
+      ExternalLinks__Grafana: http://localhost:${GRAFANA_PORT:-3000}
+      ExternalLinks__Store: http://localhost:${STORE_PORT:-8080}
       <<: *otel
       OTEL_SERVICE_NAME: range-control
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z9,service.namespace=cyber-ducks

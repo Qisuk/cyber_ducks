@@ -1,4 +1,5 @@
 ﻿@inherits LayoutComponentBase
+@inject IConfiguration Config
 
 <div class="rc-shell">
     <header class="rc-header d-flex justify-content-between align-items-center px-4 py-2">
@@ -8,6 +9,8 @@
                 <nav class="rc-nav">
                     <NavLink href="" Match="NavLinkMatch.All">Defences</NavLink>
                     <NavLink href="wargame">Wargame</NavLink>
+                    <a href="@Config["ExternalLinks:Grafana"]" target="_blank" rel="noopener">SIEM (Grafana) ↗</a>
+                    <a href="@Config["ExternalLinks:Store"]" target="_blank" rel="noopener">Store ↗</a>
                 </nav>
             </AuthorizeView>
         </div>
