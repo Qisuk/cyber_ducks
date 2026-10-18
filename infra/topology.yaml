@@ -28,9 +28,9 @@ services:
   proxy:          { zone: Z2,  kind: container, tech: nginx,                            alpha: true,  status: planned }
   store-web:      { zone: Z3,  kind: container, tech: .NET 10 Blazor Web App (static SSR), alpha: true, status: implemented }
   store-api:      { zone: Z3,  kind: container, tech: .NET 10 ASP.NET Core minimal API, alpha: true,  status: implemented }
-  ai-agent:       { zone: Z3a, kind: container, tech: .NET 10 + Microsoft.Extensions.AI, alpha: true, status: planned }
-  agent-tools:    { zone: Z3b, kind: container, tech: .NET 10 + MCP C# SDK,             alpha: true,  status: planned }
-  ollama:         { zone: Z4,  kind: container, tech: ollama/ollama,                    alpha: true,  status: planned, profile: local-llm }
+  ai-agent:       { zone: Z3a, kind: container, tech: .NET 10 + Microsoft.Extensions.AI, alpha: true, status: implemented }
+  agent-tools:    { zone: Z3b, kind: container, tech: .NET 10 + MCP C# SDK,             alpha: true,  status: implemented }
+  ollama:         { zone: Z4,  kind: container, tech: "ollama/ollama (qwen3:4b-instruct)", alpha: true,  status: implemented, profile: local-llm }
   postgres:       { zone: Z5,  kind: container, tech: postgres:18,                      alpha: true,  status: implemented,
                     databases: [duckstore, range_control] }
   backup:         { zone: Z6,  kind: container, tech: postgres:18 (pg_dump),            alpha: true,  status: implemented,
@@ -46,7 +46,7 @@ services:
                     note: "privileged, read-only host mounts" }
   postgres-exporter: { zone: Z8, kind: container, tech: prometheuscommunity/postgres-exporter:v0.20.1, alpha: true, status: implemented }
   range-control:  { zone: Z9,  kind: container, tech: .NET 10 Blazor (interactive server),  alpha: true,  status: implemented,
-                    note: "grows into ops-console (ADR-0008, ADR-0011)" }
+                    note: "hosts the Ops Console (ADR-0008 update, ADR-0011)" }
 
 flows:
   - { id: F1,  from: customer-browser, to: proxy,         what: "page requests, forms, cookies", protocol: HTTP,        boundary: TB1 }

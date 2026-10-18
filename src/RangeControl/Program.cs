@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Npgsql;
 using RangeControl;
 using RangeControl.Components;
+using RangeControl.Wargame;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,13 @@ var storeDb = new NpgsqlDataSourceBuilder(
     builder.Configuration.GetConnectionString("Duckstore")
         ?? throw new InvalidOperationException("ConnectionStrings:Duckstore is not configured.")).Build();
 builder.Services.AddSingleton(new FlagAdminService(controlDb, storeDb));
+
+// Wargame / Ops Console (ADR-0008): exercise state in range_control; scenarios and the topology
+// are files mounted read-only into the container.
+builder.Services.AddSingleton<WargameEvents>();
+builder.Services.AddSingleton(sp => new WargameService(controlDb, sp.GetRequiredService<WargameEvents>()));
+builder.Services.AddSingleton(new ScenarioCatalog(builder.Configuration["Wargame:ScenarioPath"] ?? "/range/wargame/scenarios"));
+builder.Services.AddSingleton(new TopologySource(builder.Configuration["Wargame:TopologyPath"] ?? "/range/topology.yaml"));
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtection:KeyPath"] ?? "/keys"))

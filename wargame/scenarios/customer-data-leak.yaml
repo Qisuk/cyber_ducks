@@ -1,0 +1,126 @@
+# Starter scenario for the Cyber Ducks wargame (ADR-0008). Hybrid: players may investigate the
+# real range telemetry in Grafana, but decide at tabletop level. Injects are released by the
+# facilitator from the Ops Console; `at_minute` is the suggested time after the exercise starts.
+# Phases follow NIST SP 800-61r2: preparation, detection_analysis,
+# containment_eradication_recovery, post_incident.
+
+id: customer-data-leak
+title: "Other people's ducks"
+summary: Customers report seeing orders that aren't theirs during the run-up to the weekend sale.
+duration_minutes: 90
+
+briefing: |
+  Rubber Duck Emporium Ltd is a small UK online retailer (12 staff, ~4,000 customers) selling
+  novelty rubber ducks. It stores customer names, email and delivery addresses, order history,
+  and saved payment cards (via its payment provider). It is a UK GDPR data controller.
+
+  It is Thursday, 10:00. The big weekend sale starts Saturday and normally brings 40% of the
+  month's revenue. You are the incident response team. Use the Ops Console to log every decision
+  and the reason for it. Grafana (http://localhost:3000) has the shop's logs, traces and metrics.
+
+injects:
+  - id: I1
+    at_minute: 0
+    phase: detection_analysis
+    audience: [all]
+    from: Customer support
+    title: "\"That isn't my order\""
+    body: |
+      Ticket #4471 from a customer, Bob Brown: "I clicked through from my order history and ended up
+      looking at someone else's order — their name, delivery address and what they bought. Is my
+      address visible to other people too?"
+
+  - id: I2
+    at_minute: 10
+    phase: detection_analysis
+    audience: [tech_lead, incident_commander]
+    from: On-call engineer
+    title: Odd traffic on the orders API
+    body: |
+      "Grafana shows a burst of requests to the order-details endpoint overnight — hundreds of
+      different order ids from one client in a few minutes, mostly successful. Normal customers view
+      a handful of their own orders." Check the store-api traces and logs to confirm.
+
+  - id: I3
+    at_minute: 20
+    phase: detection_analysis
+    audience: [comms, exec, incident_commander]
+    from: Social media monitoring
+    title: Public post
+    body: |
+      A post with a blurred screenshot is gaining traction: "Rubber Duck Emporium is showing
+      customers each other's addresses?? Don't shop there this weekend." 300 shares and rising.
+
+  - id: I4
+    at_minute: 30
+    phase: containment_eradication_recovery
+    audience: [legal_dpo, incident_commander]
+    from: Data Protection Officer
+    title: Is this reportable?
+    body: |
+      "If personal data has been accessed by someone who shouldn't have it, we may have to notify
+      the ICO within 72 hours of becoming aware, and possibly tell affected customers. When did we
+      become aware? How many customers, and what data? I need facts to make the call."
+
+  - id: I5
+    at_minute: 40
+    phase: containment_eradication_recovery
+    audience: [exec, incident_commander]
+    from: Managing Director
+    title: Do we take the shop down?
+    body: |
+      "Taking the site offline before the sale costs us a fortune. Can we fix it while staying up?
+      What's the risk if we don't go offline? I need a recommendation in 15 minutes."
+
+  - id: I6
+    at_minute: 50
+    phase: containment_eradication_recovery
+    audience: [comms]
+    from: Tech journalist
+    title: Request for comment
+    body: |
+      "We're running a story on the Rubber Duck Emporium data exposure at 17:00. Can you confirm
+      whether customer data was exposed, how many people are affected, and what you're doing?"
+
+  - id: I7
+    at_minute: 60
+    phase: containment_eradication_recovery
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: Fix deployed — but does it hold?
+    body: |
+      "A fix for the order-access check is ready (in the range: switch the relevant defence to
+      secure in Range Control). How will you verify it works, and how will you tell whether the
+      attacker came back afterwards?"
+
+  - id: I8
+    at_minute: 80
+    phase: post_incident
+    audience: [all]
+    from: Board
+    title: Lessons learned
+    body: |
+      "Before the sale goes ahead, the board wants a one-page summary: what happened, how we found
+      out, what we did, what we'd do differently, and what we're changing."
+
+# Facilitator-only. Not shown to players.
+facilitator_notes: |
+  Ground truth: object-level authorisation on orders is missing (VULN-IDOR-01 vulnerable), so a
+  logged-in customer can view other customers' orders by id. Suggested ground-truth map:
+  store-api = compromised, postgres = suspected (data read, not altered), store-web = normal.
+  Set it in the Ops Console when the exercise starts, and only reveal it in the debrief.
+
+  Key decision points to look for:
+  - Was the report triaged quickly and evidence preserved (traces/logs) before changes?
+  - Was scope established from telemetry (which ids, which client, which time window)?
+  - Contain while up (flip VULN-IDOR-01 to secure) vs take the site offline — was the trade-off
+    reasoned and logged?
+  - DPO: awareness time recorded; notification decision made on facts, within 72 hours.
+  - Comms: holding statement consistent with what is actually known; no speculation.
+  - Verification that the fix holds, and monitoring for repeat access.
+
+debrief_questions:
+  - When did we "become aware", and what evidence supports that time?
+  - What did the detected map show compared with the ground truth, and why the gap?
+  - Which decision would you change, knowing what you know now?
+  - Which control would have prevented this, and which would have detected it sooner?

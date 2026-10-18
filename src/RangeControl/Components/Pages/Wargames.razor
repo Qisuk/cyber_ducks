@@ -1,0 +1,106 @@
+@page "/wargame"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using RangeControl.Wargame
+@inject WargameService Games
+@inject ScenarioCatalog Catalog
+@inject NavigationManager Nav
+
+<PageTitle>Wargame · Range Control</PageTitle>
+
+<h1 class="h3 mb-0">Wargame</h1>
+<p class="text-secondary small">
+    Hybrid exercise (ADR-0008): investigate the real range telemetry, decide at tabletop level, and
+    log every decision. Release injects and reveal the ground truth from the exercise console.
+</p>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <h2 class="h6 text-uppercase text-secondary">Exercises</h2>
+        @if (_exercises is null)
+        {
+            <p class="text-secondary">Loading…</p>
+        }
+        else if (_exercises.Count == 0)
+        {
+            <p class="text-secondary small">No exercises yet. Create one from a scenario.</p>
+        }
+        else
+        {
+            <div class="list-group">
+                @foreach (var ex in _exercises)
+                {
+                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                       href="wargame/@ex.Id">
+                        <div>
+                            <div class="fw-semibold">@ex.Title</div>
+                            <code class="small">@ex.ScenarioId</code>
+                            <span class="small text-secondary ms-2">created @ex.CreatedAt.UtcDateTime.ToString("d MMM HH:mm 'UTC'")</span>
+                        </div>
+                        <span class="badge @StatusBadge(ex.Status)">@ex.Status</span>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card-dark">
+            <h2 class="h6 text-uppercase text-secondary">New exercise</h2>
+            @if (_scenarios.Count == 0)
+            {
+                <p class="text-secondary small mb-0">No scenarios found. Check that <code>wargame/scenarios</code> is mounted.</p>
+            }
+            else
+            {
+                <label class="form-label small" for="scenario">Scenario</label>
+                <select id="scenario" class="form-select mb-2" @bind="_scenarioId">
+                    @foreach (var s in _scenarios)
+                    {
+                        <option value="@s.Id">@s.Title (@s.DurationMinutes min)</option>
+                    }
+                </select>
+                @if (_scenarios.FirstOrDefault(s => s.Id == _scenarioId) is { } chosen)
+                {
+                    <p class="small text-secondary">@chosen.Summary</p>
+                }
+                <label class="form-label small" for="title">Exercise name</label>
+                <input id="title" class="form-control mb-2" @bind="_title" placeholder="e.g. Solo run 1" />
+                <label class="form-label small" for="facilitator">Facilitator name</label>
+                <input id="facilitator" class="form-control mb-3" @bind="_facilitator" />
+                <button class="btn btn-warning" @onclick="Create"
+                        disabled="@(string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_facilitator))">
+                    Create exercise
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<Exercise>? _exercises;
+    private IReadOnlyList<Scenario> _scenarios = [];
+    private string _scenarioId = "";
+    private string _title = "";
+    private string _facilitator = "Facilitator";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _scenarios = Catalog.All();
+        _scenarioId = _scenarios.FirstOrDefault()?.Id ?? "";
+        _exercises = await Games.GetExercisesAsync();
+    }
+
+    private async Task Create()
+    {
+        var id = await Games.CreateExerciseAsync(_scenarioId, _title.Trim(), _facilitator.Trim());
+        Nav.NavigateTo($"wargame/{id}");
+    }
+
+    internal static string StatusBadge(string status) => status switch
+    {
+        "running" => "text-bg-warning",
+        "ended" => "text-bg-secondary",
+        _ => "text-bg-info",
+    };
+}

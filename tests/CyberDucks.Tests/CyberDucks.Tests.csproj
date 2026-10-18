@@ -16,6 +16,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CyberDucks.Shared\CyberDucks.Shared.csproj" />
     <ProjectReference Include="..\..\src\Store.Api\Store.Api.csproj" />
+    <!-- Aliased: .NET 10 makes each web app's top-level Program public, which would clash with Store.Api's. -->
+    <ProjectReference Include="..\..\src\RangeControl\RangeControl.csproj" Aliases="rangecontrol" />
   </ItemGroup>
 
   <ItemGroup>

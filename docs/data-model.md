@@ -42,6 +42,18 @@ Separate database. Store roles have no CONNECT privilege on it.
 | `presets` / `preset_flags` | Named sets of flag values | `preset_id`, `name`; `preset_id`, `vuln_id`, `mode` |
 | `flag_changes` | History of every change (also sent to telemetry) | `changed_at`, `vuln_id`, `old_mode`, `new_mode`, `changed_by` |
 
+Wargame / Ops Console tables (`06-wargame.sql`, ADR-0008). Scenarios and injects are YAML files in
+`wargame/scenarios`; these tables only record what happens in an exercise. `flags_reader` has no
+access, so ground truth stays out of reach of the range services.
+
+| Table | Purpose | Key columns |
+|-------|---------|-------------|
+| `exercises` | One run of a scenario | `scenario_id`, `title`, `status` (`planned` / `running` / `ended`), `started_at`, `ended_at` |
+| `participants` | Who is playing which role | `exercise_id`, `name`, `role` (`facilitator`, `incident_commander`, `tech_lead`, `comms`, `legal_dpo`, `exec`) |
+| `inject_releases` | Which injects were released, when | `exercise_id`, `inject_id`, `released_at`, `released_by` |
+| `decisions` | The decision log | `exercise_id`, `participant_id`, `made_at`, `phase` (NIST SP 800-61r2), `decision`, `rationale` |
+| `node_state_changes` | Map history, append-only; current = latest per node and layer | `exercise_id`, `node` (topology service), `layer` (`detected` / `ground_truth`), `state`, `note`, `changed_at`, `changed_by` |
+
 ## Roles
 
 | Role | Used by | Privileges |

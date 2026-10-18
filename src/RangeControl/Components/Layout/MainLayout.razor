@@ -2,7 +2,15 @@
 
 <div class="rc-shell">
     <header class="rc-header d-flex justify-content-between align-items-center px-4 py-2">
-        <a class="rc-brand" href="">🦆 Range Control</a>
+        <div class="d-flex align-items-center">
+            <a class="rc-brand me-4" href="">🦆 Range Control</a>
+            <AuthorizeView>
+                <nav class="rc-nav">
+                    <NavLink href="" Match="NavLinkMatch.All">Defences</NavLink>
+                    <NavLink href="wargame">Wargame</NavLink>
+                </nav>
+            </AuthorizeView>
+        </div>
         <AuthorizeView>
             <Authorized>
                 <form method="post" action="/account/logout" class="m-0">

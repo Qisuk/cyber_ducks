@@ -41,9 +41,27 @@ The Ops Console is **range infrastructure, not part of the attack surface**. It 
 `ops` network and port, has its own auth, is reasonably hardened, and is excluded from attack
 scope. If players could tamper with the game master's view, the exercise would be worthless.
 
+## Update (2026-10-18): basics built inside range-control
+- **Hosted in `range-control`, not a new `ops-console` service.** It already sits alone on the
+  isolated `ops` network with facilitator auth and interactive Blazor, so this saves ~200 MB and a
+  second login. It can be split out later if participants need their own logins.
+- **Data:** tables in the `range_control` database (`06-wargame.sql`, see `docs/data-model.md`);
+  `flags_reader` cannot read them. Scenarios are YAML files in `wargame/scenarios`, mounted
+  read-only so they can be edited without a rebuild.
+- **Map:** drawn as SVG from `infra/topology.yaml`, zones in fixed columns. Fill = detected state,
+  thick outline = ground truth (facilitator only). States: normal, suspected, compromised,
+  contained, recovered. Clicking a node highlights its flows and opens its state editor.
+- **Roles:** an "acting as" selector gives each role's view (only the facilitator sees ground truth,
+  facilitator notes and unreleased injects). Open consoles refresh live on every change.
+- **After-action report:** detected-vs-truth gap, decisions by NIST phase, one timeline of injects,
+  decisions, map changes and defence-flag changes made during the exercise. Times are UTC.
+- **Deferred:** the detected layer from Grafana alerts (needs Phase 8 detection rules); response
+  action buttons (isolating containers needs the Docker socket, which is close to host root —
+  needs its own design); per-participant logins; attack scripts reporting ground truth (Phase 7).
+
 ## Consequences
-- New service `ops-console` (~200 MB) and its own small database schema (a separate DB in the same
-  Postgres instance, or SQLite).
+- Wargame state lives in the existing `range_control` database (see the update above); no new
+  service for now.
 - Telemetry must support investigation: end-to-end trace IDs, audit events for security-relevant
   actions, UTC timestamps, and retention that covers a whole exercise.
 - Recovery must be real: scheduled `pg_dump` backups and container isolate/rebuild scripts.

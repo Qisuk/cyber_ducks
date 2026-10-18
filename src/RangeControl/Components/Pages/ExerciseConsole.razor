@@ -1,0 +1,401 @@
+@page "/wargame/{Id:int}"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@implements IDisposable
+@using RangeControl.Wargame
+@inject WargameService Games
+@inject ScenarioCatalog Catalog
+@inject TopologySource TopologySource
+@inject WargameEvents Events
+
+<PageTitle>@(_exercise?.Title ?? "Exercise") · Wargame</PageTitle>
+
+@if (_exercise is null)
+{
+    <p class="text-secondary">@(_loaded ? "Exercise not found." : "Loading…")</p>
+    return;
+}
+
+@* --- Header: status, clock, controls, acting-as role ------------------------------------- *@
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+        <a class="small text-secondary" href="wargame">← All exercises</a>
+        <h1 class="h3 mb-0">@_exercise.Title</h1>
+        <div class="small text-secondary">
+            @(_scenario?.Title ?? _exercise.ScenarioId)
+            <span class="badge @Wargames.StatusBadge(_exercise.Status) ms-1">@_exercise.Status</span>
+            @if (_exercise.StartedAt is not null)
+            {
+                <span class="ms-2 fw-semibold text-light">T+@ElapsedMinutes min</span>
+            }
+        </div>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <label class="small text-secondary" for="actingAs">Acting as</label>
+        <select id="actingAs" class="form-select form-select-sm w-auto" @bind="_actingAsId">
+            @foreach (var p in _participants)
+            {
+                <option value="@p.Id">@p.Name (@RoleLabel(p.Role))</option>
+            }
+        </select>
+        @if (IsFacilitator)
+        {
+            @if (_exercise.Status == "planned")
+            {
+                <button class="btn btn-sm btn-warning" @onclick="Start">Start exercise</button>
+            }
+            else if (_exercise.Status == "running")
+            {
+                <button class="btn btn-sm btn-outline-light" @onclick="End">End exercise</button>
+            }
+        }
+        <a class="btn btn-sm btn-outline-info" href="wargame/@Id/report">After-action report</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    @* --- Map and node panel --------------------------------------------------------------- *@
+    <div class="col-xl-8">
+        <div class="card-dark">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h6 text-uppercase text-secondary mb-0">Infrastructure map</h2>
+                @if (IsFacilitator)
+                {
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="truth" @bind="_showTruth" />
+                        <label class="form-check-label small" for="truth">Show ground truth (facilitator)</label>
+                    </div>
+                }
+            </div>
+            @if (_topology is null)
+            {
+                <p class="text-secondary small">@_topologyError</p>
+            }
+            else
+            {
+                <InfraMap Topology="_topology" States="_states" ShowGroundTruth="@(IsFacilitator && _showTruth)"
+                          SelectedNode="@_selected" OnSelect="Select" />
+            }
+
+            @if (_selected is not null && _topology?.Services.FirstOrDefault(s => s.Name == _selected) is { } svc)
+            {
+                <hr class="border-secondary" />
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <span class="fw-semibold">@svc.Name</span>
+                        <span class="small text-secondary ms-2">@svc.Zone · @svc.Kind@(svc.Tech is null ? "" : $" · {svc.Tech}")</span>
+                        @if (svc.Note is not null)
+                        {
+                            <div class="small text-secondary">@svc.Note</div>
+                        }
+                    </div>
+                    <button class="btn btn-sm btn-link text-secondary" @onclick="() => Select(null)">close</button>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label small">Detected state (what the team believes)</label>
+                        <div class="input-group input-group-sm">
+                            <select class="form-select" @bind="_detectedState">
+                                @foreach (var s in WargameService.States) { <option>@s</option> }
+                            </select>
+                            <input class="form-control" placeholder="evidence / note" @bind="_detectedNote" />
+                            <button class="btn btn-outline-light" @onclick='() => SetState("detected", _detectedState, _detectedNote)'
+                                    disabled="@(!IsRunning)">Set</button>
+                        </div>
+                    </div>
+                    @if (IsFacilitator)
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label small">Ground truth (facilitator only)</label>
+                            <div class="input-group input-group-sm">
+                                <select class="form-select" @bind="_truthState">
+                                    @foreach (var s in WargameService.States) { <option>@s</option> }
+                                </select>
+                                <input class="form-control" placeholder="note" @bind="_truthNote" />
+                                <button class="btn btn-outline-warning" @onclick='() => SetState("ground_truth", _truthState, _truthNote)'>Set</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* --- Decision log ------------------------------------------------------------------ *@
+        <div class="card-dark mt-3">
+            <h2 class="h6 text-uppercase text-secondary">Decision log</h2>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select class="form-select form-select-sm" @bind="_phase" aria-label="Phase">
+                        @foreach (var p in WargameService.Phases) { <option value="@p">@PhaseLabel(p)</option> }
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <input class="form-control form-control-sm" placeholder="Decision (what we will do)" @bind="_decisionText" />
+                </div>
+                <div class="col-12">
+                    <textarea class="form-control form-control-sm" rows="2" placeholder="Rationale (why, and on what evidence)"
+                              @bind="_rationale"></textarea>
+                </div>
+                <div class="col-12">
+                    <button class="btn btn-sm btn-warning" @onclick="LogDecision"
+                            disabled="@(!IsRunning || string.IsNullOrWhiteSpace(_decisionText))">Log decision</button>
+                    @if (!IsRunning)
+                    {
+                        <span class="small text-secondary ms-2">Decisions can be logged while the exercise is running.</span>
+                    }
+                </div>
+            </div>
+            @if (_decisions.Count > 0)
+            {
+                <table class="table table-sm table-dark-lite mt-3 mb-0">
+                    <thead><tr><th>Time</th><th>Phase</th><th>Decision</th><th>By</th></tr></thead>
+                    <tbody>
+                        @foreach (var d in _decisions.Reverse())
+                        {
+                            <tr>
+                                <td class="text-nowrap">@Clock(d.MadeAt)</td>
+                                <td class="small">@PhaseLabel(d.Phase)</td>
+                                <td>
+                                    @d.Text
+                                    @if (d.Rationale.Length > 0) { <div class="small text-secondary prewrap">@d.Rationale</div> }
+                                </td>
+                                <td class="small">@(d.ParticipantName ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    @* --- Briefing, injects, participants ---------------------------------------------------- *@
+    <div class="col-xl-4">
+        @if (_scenario is not null)
+        {
+            <details class="card-dark mb-3" open="@(_exercise.Status == "planned")">
+                <summary class="h6 text-uppercase text-secondary mb-0">Briefing</summary>
+                <div class="prewrap small mt-2">@_scenario.Briefing</div>
+            </details>
+
+            @if (IsFacilitator && _scenario.FacilitatorNotes.Length > 0)
+            {
+                <details class="card-dark mb-3">
+                    <summary class="h6 text-uppercase text-warning mb-0">Facilitator notes</summary>
+                    <div class="prewrap small mt-2">@_scenario.FacilitatorNotes</div>
+                </details>
+            }
+
+            <div class="card-dark mb-3">
+                <h2 class="h6 text-uppercase text-secondary">Injects</h2>
+                @{ var visible = VisibleInjects().ToList(); }
+                @if (visible.Count == 0)
+                {
+                    <p class="small text-secondary mb-0">Nothing released to your role yet.</p>
+                }
+                @foreach (var item in visible)
+                {
+                    var release = _releases.FirstOrDefault(r => r.InjectId == item.Id);
+                    var due = release is null && IsRunning && ElapsedMinutes >= item.AtMinute;
+                    <div class="inject @(release is not null ? "inject-released" : due ? "inject-due" : "")">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <span class="small text-secondary">T+@item.AtMinute · @item.Id · @item.From</span>
+                                <div class="fw-semibold">@item.Title</div>
+                            </div>
+                            @if (release is null && IsFacilitator)
+                            {
+                                <button class="btn btn-sm @(due ? "btn-warning" : "btn-outline-light")"
+                                        disabled="@(!IsRunning)" @onclick="() => Release(item)">Release</button>
+                            }
+                        </div>
+                        <div class="small">
+                            @foreach (var role in item.Audience)
+                            {
+                                <span class="badge text-bg-dark border border-secondary me-1">@RoleLabel(role)</span>
+                            }
+                            @if (release is not null)
+                            {
+                                <span class="text-success ms-1">released @Clock(release.ReleasedAt)</span>
+                            }
+                        </div>
+                        @if (release is not null || IsFacilitator)
+                        {
+                            <details class="mt-1" open="@(release is not null && !IsFacilitator)">
+                                <summary class="small text-secondary">message</summary>
+                                <div class="inject-body">@item.Body</div>
+                            </details>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="card-dark mb-3 small text-warning">Scenario file <code>@_exercise.ScenarioId</code> not found.</div>
+        }
+
+        <div class="card-dark">
+            <h2 class="h6 text-uppercase text-secondary">Participants</h2>
+            <ul class="list-unstyled small mb-2">
+                @foreach (var p in _participants)
+                {
+                    <li>@p.Name <span class="text-secondary">· @RoleLabel(p.Role)</span></li>
+                }
+            </ul>
+            @if (IsFacilitator)
+            {
+                <div class="input-group input-group-sm">
+                    <input class="form-control" placeholder="name" @bind="_newName" />
+                    <select class="form-select" @bind="_newRole" aria-label="Role">
+                        @foreach (var r in WargameService.Roles.Where(r => r != "facilitator"))
+                        {
+                            <option value="@r">@RoleLabel(r)</option>
+                        }
+                    </select>
+                    <button class="btn btn-outline-light" @onclick="AddParticipant"
+                            disabled="@string.IsNullOrWhiteSpace(_newName)">Add</button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _loaded;
+    private Exercise? _exercise;
+    private Scenario? _scenario;
+    private Topology? _topology;
+    private string _topologyError = "";
+    private IReadOnlyList<Participant> _participants = [];
+    private IReadOnlyList<InjectRelease> _releases = [];
+    private IReadOnlyList<Decision> _decisions = [];
+    private IReadOnlyList<NodeState> _states = [];
+
+    private int _actingAsId;
+    private bool _showTruth;
+    private string? _selected;
+    private string _detectedState = "normal", _detectedNote = "", _truthState = "normal", _truthNote = "";
+    private string _phase = "detection_analysis", _decisionText = "", _rationale = "";
+    private string _newName = "", _newRole = "incident_commander";
+    private Timer? _clock;
+
+    private Participant? ActingAs => _participants.FirstOrDefault(p => p.Id == _actingAsId);
+    private bool IsFacilitator => ActingAs?.Role == "facilitator";
+    private bool IsRunning => _exercise?.Status == "running";
+    private string Actor => ActingAs?.Name ?? "facilitator";
+
+    private int ElapsedMinutes => _exercise?.StartedAt is { } started
+        ? (int)((_exercise.EndedAt ?? DateTimeOffset.UtcNow) - started).TotalMinutes
+        : 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _topology = TopologySource.Load();
+        }
+        catch (Exception ex)
+        {
+            _topologyError = $"Could not load the topology: {ex.Message}";
+        }
+        await ReloadAsync();
+        _actingAsId = _participants.FirstOrDefault(p => p.Role == "facilitator")?.Id ?? _participants.FirstOrDefault()?.Id ?? 0;
+        _scenario = _exercise is null ? null : Catalog.Find(_exercise.ScenarioId);
+        _loaded = true;
+
+        // Live updates: other participants' changes, and the T+ clock.
+        Events.Changed += OnChanged;
+        _clock = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(20));
+    }
+
+    private async Task ReloadAsync()
+    {
+        _exercise = await Games.GetExerciseAsync(Id);
+        if (_exercise is null)
+        {
+            return;
+        }
+        _participants = await Games.GetParticipantsAsync(Id);
+        _releases = await Games.GetReleasesAsync(Id);
+        _decisions = await Games.GetDecisionsAsync(Id);
+        _states = await Games.GetNodeStatesAsync(Id);
+    }
+
+    private void OnChanged(int exerciseId)
+    {
+        if (exerciseId == Id)
+        {
+            _ = InvokeAsync(async () => { await ReloadAsync(); StateHasChanged(); });
+        }
+    }
+
+    // Facilitator sees every inject; other roles see only those released to them (or to all).
+    private IEnumerable<Inject> VisibleInjects() =>
+        (_scenario?.Injects ?? []).Where(i => IsFacilitator
+            || (_releases.Any(r => r.InjectId == i.Id)
+                && (i.Audience.Contains("all") || i.Audience.Contains(ActingAs?.Role ?? ""))));
+
+    private void Select(string? node)
+    {
+        _selected = node;
+        string Current(string layer) => _states.FirstOrDefault(s => s.Node == node && s.Layer == layer)?.State ?? "normal";
+        _detectedState = Current("detected");
+        _truthState = Current("ground_truth");
+        _detectedNote = _truthNote = "";
+    }
+
+    private async Task Start() => await Games.StartAsync(Id);
+    private async Task End() => await Games.EndAsync(Id);
+    private async Task Release(Inject inject) => await Games.ReleaseInjectAsync(Id, inject.Id, Actor);
+
+    private async Task SetState(string layer, string state, string note)
+    {
+        await Games.SetNodeStateAsync(Id, _selected!, layer, state, note.Trim(), Actor);
+        _detectedNote = _truthNote = "";
+    }
+
+    private async Task LogDecision()
+    {
+        await Games.LogDecisionAsync(Id, ActingAs?.Id, _phase, _decisionText.Trim(), _rationale.Trim());
+        _decisionText = _rationale = "";
+    }
+
+    private async Task AddParticipant()
+    {
+        await Games.AddParticipantAsync(Id, _newName.Trim(), _newRole);
+        _newName = "";
+    }
+
+    private string Clock(DateTimeOffset at) => _exercise?.StartedAt is { } started && at >= started
+        ? $"T+{(int)(at - started).TotalMinutes}"
+        : at.UtcDateTime.ToString("HH:mm 'UTC'");
+
+    internal static string RoleLabel(string role) => role switch
+    {
+        "incident_commander" => "Incident commander",
+        "tech_lead" => "Tech lead",
+        "comms" => "Comms",
+        "legal_dpo" => "Legal / DPO",
+        "exec" => "Exec",
+        "facilitator" => "Facilitator",
+        "all" => "All",
+        _ => role,
+    };
+
+    internal static string PhaseLabel(string phase) => phase switch
+    {
+        "preparation" => "Preparation",
+        "detection_analysis" => "Detection & analysis",
+        "containment_eradication_recovery" => "Containment, eradication & recovery",
+        "post_incident" => "Post-incident",
+        _ => phase,
+    };
+
+    public void Dispose()
+    {
+        Events.Changed -= OnChanged;
+        _clock?.Dispose();
+    }
+}

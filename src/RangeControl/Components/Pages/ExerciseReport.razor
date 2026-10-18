@@ -1,0 +1,156 @@
+@page "/wargame/{Id:int}/report"
+@attribute [Authorize]
+@using RangeControl.Wargame
+@inject WargameService Games
+@inject ScenarioCatalog Catalog
+
+<PageTitle>After-action report · Wargame</PageTitle>
+
+@if (_exercise is null)
+{
+    <p class="text-secondary">Exercise not found.</p>
+    return;
+}
+
+<div class="d-flex justify-content-between align-items-start no-print mb-2">
+    <a class="small text-secondary" href="wargame/@Id">← Back to the exercise</a>
+    <button class="btn btn-sm btn-outline-light" onclick="window.print()">Print / save as PDF</button>
+</div>
+
+<h1 class="h3">After-action report: @_exercise.Title</h1>
+<p class="small text-secondary">
+    Scenario: @(_scenario?.Title ?? _exercise.ScenarioId) ·
+    Started @(_exercise.StartedAt?.UtcDateTime.ToString("d MMM yyyy HH:mm 'UTC'") ?? "not started") ·
+    @if (_exercise.StartedAt is { } s)
+    {
+        <span>Duration @((int)((_exercise.EndedAt ?? DateTimeOffset.UtcNow) - s).TotalMinutes) min@(_exercise.EndedAt is null ? " (still running)" : "")</span>
+    }
+    · Injects released @_releasedCount/@(_scenario?.Injects.Count ?? 0) · Decisions @_decisions.Count
+</p>
+
+<div class="card-dark mb-3">
+    <h2 class="h6 text-uppercase text-secondary">Detected vs ground truth</h2>
+    @if (_comparison.Count == 0)
+    {
+        <p class="small text-secondary mb-0">No map states were recorded.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-dark-lite mb-0">
+            <thead><tr><th>Node</th><th>Team detected</th><th>Ground truth</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var (node, detected, truth) in _comparison)
+                {
+                    <tr>
+                        <td>@node</td>
+                        <td>@detected</td>
+                        <td>@truth</td>
+                        <td>@(detected == truth ? "✓ match" : "✗ gap")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<div class="card-dark mb-3">
+    <h2 class="h6 text-uppercase text-secondary">Decisions by phase (NIST SP 800-61)</h2>
+    @foreach (var phase in WargameService.Phases)
+    {
+        var inPhase = _decisions.Where(d => d.Phase == phase).ToList();
+        <h3 class="h6 mt-2">@ExerciseConsole.PhaseLabel(phase) <span class="text-secondary">(@inPhase.Count)</span></h3>
+        @if (inPhase.Count == 0)
+        {
+            <p class="small text-secondary">None logged.</p>
+        }
+        <ul class="small">
+            @foreach (var d in inPhase)
+            {
+                <li>
+                    <span class="text-secondary">@Clock(d.MadeAt)</span> @d.Text
+                    @if (d.ParticipantName is not null) { <span class="text-secondary">— @d.ParticipantName</span> }
+                    @if (d.Rationale.Length > 0) { <div class="text-secondary prewrap">Why: @d.Rationale</div> }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+<div class="card-dark mb-3">
+    <h2 class="h6 text-uppercase text-secondary">Timeline</h2>
+    <table class="table table-sm table-dark-lite mb-0">
+        <thead><tr><th>Time</th><th>Event</th><th>Subject</th><th>Detail</th><th>By</th></tr></thead>
+        <tbody>
+            @foreach (var e in _timeline)
+            {
+                <tr>
+                    <td class="text-nowrap">@Clock(e.At)</td>
+                    <td class="small">@KindLabel(e.Kind)</td>
+                    <td class="small">@Subject(e)</td>
+                    <td class="small">@e.Detail</td>
+                    <td class="small">@e.Actor</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (_scenario?.DebriefQuestions.Count > 0)
+{
+    <div class="card-dark mb-3">
+        <h2 class="h6 text-uppercase text-secondary">Debrief questions</h2>
+        <ol class="small mb-0">
+            @foreach (var q in _scenario.DebriefQuestions) { <li class="mb-3">@q</li> }
+        </ol>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Exercise? _exercise;
+    private Scenario? _scenario;
+    private IReadOnlyList<Decision> _decisions = [];
+    private IReadOnlyList<TimelineEntry> _timeline = [];
+    private List<(string Node, string Detected, string Truth)> _comparison = [];
+    private int _releasedCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _exercise = await Games.GetExerciseAsync(Id);
+        if (_exercise is null)
+        {
+            return;
+        }
+        _scenario = Catalog.Find(_exercise.ScenarioId);
+        _decisions = await Games.GetDecisionsAsync(Id);
+        _timeline = await Games.GetTimelineAsync(Id);
+        _releasedCount = (await Games.GetReleasesAsync(Id)).Count;
+
+        var states = await Games.GetNodeStatesAsync(Id);
+        string Of(string node, string layer) => states.FirstOrDefault(s => s.Node == node && s.Layer == layer)?.State ?? "normal";
+        _comparison = states.Select(s => s.Node).Distinct().Order()
+            .Select(n => (n, Of(n, "detected"), Of(n, "ground_truth"))).ToList();
+    }
+
+    private string Clock(DateTimeOffset at) => _exercise?.StartedAt is { } started && at >= started
+        ? $"T+{(int)(at - started).TotalMinutes}"
+        : at.UtcDateTime.ToString("HH:mm 'UTC'");
+
+    private string Subject(TimelineEntry e) => e.Kind switch
+    {
+        "inject" => $"{e.Subject}: {_scenario?.Injects.FirstOrDefault(i => i.Id == e.Subject)?.Title}",
+        "decision" => ExerciseConsole.PhaseLabel(e.Subject),
+        _ => e.Subject,
+    };
+
+    private static string KindLabel(string kind) => kind switch
+    {
+        "inject" => "Inject released",
+        "decision" => "Decision",
+        "map.detected" => "Map: detected",
+        "map.ground_truth" => "Map: ground truth",
+        "defence" => "Defence changed",
+        _ => kind,
+    };
+}

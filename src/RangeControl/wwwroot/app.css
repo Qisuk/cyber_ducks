@@ -5,7 +5,9 @@ body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-syste
 .rc-shell { min-height: 100vh; }
 .rc-header { background: #020617; border-bottom: 2px solid #f59e0b; }
 .rc-brand { color: #f8fafc; font-weight: 700; text-decoration: none; font-size: 1.1rem; }
-.rc-main { max-width: 1100px; margin: 0 auto; }
+.rc-main { max-width: 1400px; margin: 0 auto; }
+.rc-nav a { color: #cbd5e1; text-decoration: none; margin-right: 1rem; }
+.rc-nav a.active, .rc-nav a:hover { color: #f59e0b; }
 
 .list-group-item { background: #1e293b; color: #e2e8f0; border-color: #334155; }
 .list-group-item code { color: #93c5fd; }
@@ -23,3 +25,46 @@ h2.text-secondary, .text-secondary { color: #94a3b8 !important; }
     position: fixed; width: 100%; z-index: 1000;
 }
 #blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: 1rem; top: 0.5rem; }
+
+/* --- Wargame / Ops Console ------------------------------------------------------------- */
+.card-dark { background: #1e293b; border: 1px solid #334155; border-radius: .75rem; padding: 1rem; color: #e2e8f0; }
+.card-dark .form-control, .card-dark .form-select { background: #0f172a; color: #e2e8f0; border-color: #334155; }
+.table-dark-lite { color: #e2e8f0; }
+.table-dark-lite td, .table-dark-lite th { background: transparent; color: #e2e8f0; border-color: #334155; }
+
+.infra-map { width: 100%; height: auto; font-family: system-ui, sans-serif; }
+.infra-map .zone rect { fill: #0f172a; stroke: #475569; stroke-width: 1; }
+.infra-map .zone text { fill: #94a3b8; font-size: 11px; font-weight: 600; }
+.infra-map .zone-untrusted rect { stroke: #ef4444; stroke-dasharray: 5 3; }
+.infra-map .zone-out-of-scope rect { stroke: #f59e0b; stroke-dasharray: 2 3; }
+.infra-map .flow { stroke: #64748b; stroke-width: 1; opacity: .25; }
+.infra-map .flow-active { stroke: #f59e0b; opacity: .9; stroke-width: 1.6; }
+.infra-map .node { cursor: pointer; }
+.infra-map .node text { fill: #0f172a; font-size: 12px; pointer-events: none; }
+.infra-map .node-body { stroke: #0f172a; stroke-width: 1; }
+.infra-map .node-planned .node-body { stroke-dasharray: 4 3; stroke: #e2e8f0; opacity: .55; }
+.infra-map .node-selected .node-body { stroke: #f59e0b; stroke-width: 3; }
+.infra-map .truth { fill: none; stroke-width: 4; }
+
+/* State colours, shared by map fill, ground-truth outline and legend. */
+.state-normal .node-body, .legend-swatch.state-normal { fill: #cbd5e1; background: #cbd5e1; }
+.state-suspected .node-body, .legend-swatch.state-suspected { fill: #fde68a; background: #fde68a; }
+.state-compromised .node-body, .legend-swatch.state-compromised { fill: #fca5a5; background: #fca5a5; }
+.state-contained .node-body, .legend-swatch.state-contained { fill: #93c5fd; background: #93c5fd; }
+.state-recovered .node-body, .legend-swatch.state-recovered { fill: #86efac; background: #86efac; }
+.truth-suspected { stroke: #f59e0b; }
+.truth-compromised { stroke: #dc2626; }
+.truth-contained { stroke: #2563eb; }
+.truth-recovered { stroke: #16a34a; }
+.legend-swatch { display: inline-block; width: .8rem; height: .8rem; border-radius: 2px; vertical-align: middle; margin-right: .25rem; }
+
+.inject { border-left: 3px solid #475569; padding: .4rem .6rem; margin-bottom: .5rem; background: #0f172a; border-radius: .25rem; }
+.inject-due { border-left-color: #f59e0b; }
+.inject-released { border-left-color: #16a34a; }
+.inject-body { white-space: pre-wrap; font-size: .875rem; color: #cbd5e1; }
+.prewrap { white-space: pre-wrap; }
+
+@media print {
+    .rc-header, .no-print { display: none !important; }
+    body, .card-dark, .table-dark-lite td, .table-dark-lite th { background: #fff !important; color: #000 !important; }
+}

@@ -1,0 +1,82 @@
+@using RangeControl.Wargame
+@* The interactive infra map (ADR-0008). Fill = what the players have detected; with ground truth
+   shown (facilitator only), the outline = what is actually true. Click a node to select it. *@
+
+<svg class="infra-map" viewBox="0 0 @F(_layout.Width) @F(_layout.Height)" role="img"
+     aria-label="Range infrastructure map">
+    @foreach (var zone in _layout.Zones)
+    {
+        <g class="zone @(zone.Zone.InAttackScope ? "" : "zone-out-of-scope") @(zone.Zone.Id == "Z3a" ? "zone-untrusted" : "")">
+            <rect x="@F(zone.X)" y="@F(zone.Y)" width="@F(zone.Width)" height="@F(zone.Height)" rx="8" />
+            <text x="@F(zone.X + 8)" y="@F(zone.Y + 17)">@zone.Zone.Id · @zone.Zone.Name</text>
+        </g>
+    }
+
+    @foreach (var flow in _layout.Nodes.Count == 0 ? [] : Topology.Flows)
+    {
+        if (_nodes.TryGetValue(flow.From, out var a) && _nodes.TryGetValue(flow.To, out var b))
+        {
+            var active = SelectedNode is not null && (flow.From == SelectedNode || flow.To == SelectedNode);
+            <line class="flow @(active ? "flow-active" : "")" x1="@F(a.CenterX)" y1="@F(a.CenterY)"
+                  x2="@F(b.CenterX)" y2="@F(b.CenterY)">
+                <title>@flow.Id: @flow.From → @flow.To — @flow.What</title>
+            </line>
+        }
+    }
+
+    @foreach (var node in _layout.Nodes)
+    {
+        var name = node.Service.Name;
+        var detected = StateOf(name, "detected");
+        var truth = StateOf(name, "ground_truth");
+        var planned = node.Service.Status == "planned";
+        <g class="node state-@detected @(planned ? "node-planned" : "") @(name == SelectedNode ? "node-selected" : "")"
+           @onclick="() => OnSelect.InvokeAsync(name)">
+            <title>@name (@node.Service.Kind@(node.Service.Tech is null ? "" : $", {node.Service.Tech}"))@(planned ? " — planned" : "")
+detected: @detected@(ShowGroundTruth ? $"\nground truth: {truth}" : "")</title>
+            <rect class="node-body" x="@F(node.X)" y="@F(node.Y)" width="@F(node.Width)" height="@F(node.Height)" rx="5" />
+            @if (ShowGroundTruth && truth != "normal")
+            {
+                <rect class="truth truth-@truth" x="@F(node.X - 3)" y="@F(node.Y - 3)"
+                      width="@F(node.Width + 6)" height="@F(node.Height + 6)" rx="7" />
+            }
+            <text x="@F(node.X + 8)" y="@F(node.Y + 19)">@name</text>
+        </g>
+    }
+</svg>
+
+<div class="map-legend small text-secondary mt-1">
+    Fill = detected:
+    @foreach (var state in WargameService.States)
+    {
+        <span class="legend-swatch state-@state"></span><span class="me-2">@state</span>
+    }
+    @if (ShowGroundTruth)
+    {
+        <span class="ms-2">· Thick outline = ground truth</span>
+    }
+    <span class="ms-2">· Dashed = planned service</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Topology Topology { get; set; } = default!;
+    [Parameter] public IReadOnlyList<NodeState> States { get; set; } = [];
+    [Parameter] public bool ShowGroundTruth { get; set; }
+    [Parameter] public string? SelectedNode { get; set; }
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+
+    private MapLayout _layout = new([], [], 100, 100);
+    private Dictionary<string, NodeBox> _nodes = [];
+
+    protected override void OnParametersSet()
+    {
+        _layout = MapLayout.For(Topology);
+        _nodes = _layout.Nodes.ToDictionary(n => n.Service.Name);
+    }
+
+    private string StateOf(string node, string layer) =>
+        States.FirstOrDefault(s => s.Node == node && s.Layer == layer)?.State ?? "normal";
+
+    // SVG attributes need invariant-culture numbers.
+    private static string F(double value) => value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+}

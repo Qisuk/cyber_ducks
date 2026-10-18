@@ -291,6 +291,9 @@ services:
       - "127.0.0.1:${RANGE_CONTROL_PORT:-8090}:8080"
     volumes:
       - rangectlkeys:/keys
+      # Wargame (ADR-0008): the map is drawn from the topology; scenarios are editable files.
+      - ./infra/topology.yaml:/range/topology.yaml:ro
+      - ./wargame:/range/wargame:ro
     healthcheck: *http-health
     depends_on:
       postgres: { condition: service_healthy }
