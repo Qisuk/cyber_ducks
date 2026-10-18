@@ -72,3 +72,5 @@ probe; the others are shown via their partner flaws). ✅
 |----|------------------|------|
 | [VULN-WEBHOOK-01](../attacks/VULN-WEBHOOK-01/) | Signed payment webhooks ✅ | A08 |
 | [VULN-LOG-01](../attacks/VULN-LOG-01/) | Audit logging of security events ✅ (planned wiring) | A09 |
+| VULN-HEADERS-01 | Security response headers (CSP) on store-web — defence in depth for XSS-01/LLM-05 ✅ | A05 |
+| VULN-GRAFANA-01 | Grafana requires login (no anonymous Admin); infra toggle via `GRAFANA_ANONYMOUS` + restart ✅ | A05 |

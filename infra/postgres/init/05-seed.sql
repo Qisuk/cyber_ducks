@@ -136,7 +136,9 @@ INSERT INTO defence_flags (vuln_id, title, kind, requires_restart) VALUES
   ('VULN-LLM-06',     'Agent asks the customer before state-changing actions', 'code', false),
   ('VULN-MCP-01',     'Tool server calls APIs with the customer''s token',     'code', false),
   ('VULN-WEBHOOK-01', 'Signed payment webhooks',                               'code', false),
-  ('VULN-LOG-01',     'Audit logging of security events',                      'code', false);
+  ('VULN-LOG-01',     'Audit logging of security events',                      'code', false),
+  ('VULN-HEADERS-01', 'Security response headers (CSP) on store-web',          'code', false),
+  ('VULN-GRAFANA-01', 'Grafana requires login (no anonymous Admin)',           'infra', true);
 
 INSERT INTO presets (id, name, description) VALUES
   (1, 'All vulnerable', 'Every defence off: the range as attackers first find it'),

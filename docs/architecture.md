@@ -85,7 +85,7 @@ every app service sends OTLP.
 | 5 | OAuth via Keycloak ("Google"/"Meta") | ✓ | Done: social login, VULN-OAUTH-01/02/03 |
 | 6 | AI agent + agent-tools, swappable LLM (ADR-0010) | ✓ | Done: chat UI; VULN-LLM-02/05/06 wired |
 | 7 | Arm the range: vulnerability catalogue + attack scripts | | **In progress**: catalogue ([docs/vulnerabilities.md](vulnerabilities.md)); vertical slice IDOR/SQLI/AUTHZ/LLM-06 with confirm probes + detections |
-| 8 | Defence: detections, hardening, WAF, segmentation | | **In progress**: 8a done — 6 provisioned Grafana alerts from the catalogue + log card-number redaction. Hardening/WAF/segmentation to come |
+| 8 | Defence: detections, hardening, WAF, segmentation | | **In progress**: 8a (6 provisioned Grafana alerts + log card-number redaction) and 8b (CSP/security-headers toggle VULN-HEADERS-01; Grafana anonymous-Admin as infra toggle VULN-GRAFANA-01) done. WAF/segmentation to come |
 | 9 | Wargame: Ops Console, scenarios, injects, role cards, after-action report | ✓ (basics) | Ops Console in range-control: map, injects, decision log, after-action report ([ADR-0008](decisions/0008-wargame-and-ops-console.md)) |
 
 **Alpha:** a store you can log into and order from, with telemetry and the AI agent. The alpha is

@@ -110,6 +110,9 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 // No HTTPS redirection or HSTS: the range is plain HTTP on localhost (threat model: accepted risk).
 
+// VULN-HEADERS-01: security response headers (CSP etc.) as a runtime defence-in-depth toggle.
+app.UseMiddleware<Store.Web.Services.SecurityHeadersMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
