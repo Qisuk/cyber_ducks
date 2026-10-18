@@ -1,0 +1,142 @@
+# Wargame scenario (ADR-0008). Hybrid tabletop: players may investigate the real range telemetry
+# in Grafana, but decide at tabletop level. The facilitator releases injects from the Ops Console;
+# `at_minute` is the suggested time after the exercise starts. Phases follow NIST SP 800-61r2.
+#
+# Centres on VULN-SQLI-01 (string-concatenated query in the product search). Aggravated by
+# VULN-PWD-01 (weak password storage) and VULN-PCI-01 (card data at rest). The store-api database
+# errors alert (detections/VULN-SQLI-01.md) raises store-api on the detected map via the Grafana
+# bridge if the facilitator actually runs the injection traffic.
+
+id: sql-injection-breach
+title: "The duck that leaked everything"
+summary: The shop's product search starts throwing errors, then a forum post claims the whole customer database is for sale.
+duration_minutes: 90
+
+briefing: |
+  Rubber Duck Emporium Ltd is a small UK online retailer (12 staff, ~4,000 customers) selling
+  novelty rubber ducks. It stores customer names, email and delivery addresses, order history,
+  hashed login passwords, and saved payment-card references. It is a UK GDPR data controller and
+  takes card payments, so PCI DSS applies.
+
+  It is Tuesday, 09:00. You are the incident response team. Overnight, monitoring flagged a run of
+  database errors from the shop's API, and a few customers emailed to say search "looked broken".
+  Use the Ops Console to log every decision and the reason for it. Grafana
+  (http://localhost:3000) has the shop's logs, traces and metrics.
+
+injects:
+  - id: I1
+    at_minute: 0
+    phase: detection_analysis
+    audience: [all]
+    from: On-call engineer
+    title: Database errors from the search endpoint
+    body: |
+      "Grafana lit up overnight: a cluster of Npgsql/SQL syntax errors from store-api, all on the
+      product-search path, from a single client. Between the errors there are also some unusually
+      large, slow search responses. Normal search never errors like this. Pulling the traces now."
+
+  - id: I2
+    at_minute: 12
+    phase: detection_analysis
+    audience: [tech_lead, incident_commander]
+    from: Security analyst
+    title: These look like injection probes
+    body: |
+      "The failing search terms aren't product names — they contain quotes, UNION SELECT, and
+      comment markers. A few requests returned far more rows than a search should. This looks like
+      SQL injection against the search query, and at least some of it succeeded."
+
+  - id: I3
+    at_minute: 22
+    phase: detection_analysis
+    audience: [comms, exec, incident_commander]
+    from: Threat intel / brand monitoring
+    title: "Database for sale"
+    body: |
+      A post on a breach forum offers "4k UK duck shop customers — emails, addresses, password
+      hashes, card refs" with a small sample. The sample names match real customers. The post is
+      three hours old.
+
+  - id: I4
+    at_minute: 32
+    phase: containment_eradication_recovery
+    audience: [legal_dpo, incident_commander]
+    from: Data Protection Officer
+    title: Scope and notification
+    body: |
+      "I need facts. What categories of data were accessed — contact details only, or passwords and
+      card references too? Roughly how many people? When did we become aware? Password hashes and
+      card data change both the ICO notification and whether we must tell customers directly. The
+      72-hour clock may already be running."
+
+  - id: I5
+    at_minute: 42
+    phase: containment_eradication_recovery
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: Contain the injection
+    body: |
+      "We can switch the search query to parameterised (in the range: flip VULN-SQLI-01 to secure in
+      Range Control) without downtime. Should we also force a password reset, and rotate anything the
+      attacker could have read? What do we preserve for evidence before we change anything?"
+
+  - id: I6
+    at_minute: 55
+    phase: containment_eradication_recovery
+    audience: [exec, legal_dpo]
+    from: Payment provider / acquirer
+    title: Are cardholder data obligations triggered?
+    body: |
+      "Your acquirer has seen the forum post. If stored card data was exposed you have PCI incident
+      obligations and we may need to be formally notified. Confirm what card data you actually hold
+      and whether it was in scope of the breach."
+
+  - id: I7
+    at_minute: 68
+    phase: containment_eradication_recovery
+    audience: [comms]
+    from: Communications lead
+    title: Customer notification draft
+    body: |
+      "If we have to tell customers, I need a clear, non-speculative message: what happened, what
+      data, what they should do (reset passwords, watch for phishing), and what we've done. Give me
+      the confirmed facts I can and cannot say yet."
+
+  - id: I8
+    at_minute: 82
+    phase: post_incident
+    audience: [all]
+    from: Board
+    title: Lessons learned
+    body: |
+      "One page for the board: what happened, how we found out, the data involved, what we did, and
+      the three changes that stop a repeat — in code, in monitoring, and in how we store secrets."
+
+# Facilitator-only. Not shown to players.
+facilitator_notes: |
+  Ground truth: the product search builds its SQL by string concatenation (VULN-SQLI-01 vulnerable),
+  so a crafted search term reads arbitrary tables, including users (with VULN-PWD-01 weak hashes) and
+  saved card references (VULN-PCI-01). This is a confidentiality breach of the whole dataset, not a
+  per-record leak. Suggested ground-truth map: store-api = compromised, postgres = compromised (bulk
+  read), store-web = normal, payment-stub = normal. Set it at start; reveal only in the debrief.
+
+  Live tie-in: if you actually run injection traffic against search, the "store-api database errors"
+  alert fires and the Grafana bridge raises store-api to suspected on the DETECTED map — so players
+  can compare what detection showed against the ground truth you set.
+
+  Key decision points to look for:
+  - Evidence first: were the traces/logs for the attacker's client and time window preserved before
+    flipping the flag?
+  - Scope from telemetry: which tables/rows were in the large responses; was card/password data
+    actually reachable, or only contact details? Facts over assumptions.
+  - Contain without downtime (VULN-SQLI-01 -> secure) and decide on forced password reset + secret
+    rotation; the weak hashing means hashes are a real credential-stuffing risk elsewhere.
+  - DPO/PCI: awareness time recorded; notification decisions (ICO, customers, acquirer) made on
+    confirmed data categories within the 72-hour window.
+  - Comms: statement matches confirmed facts; advises password reset and phishing caution.
+
+debrief_questions:
+  - When did we "become aware", and what evidence supports that time?
+  - What data was actually exposed versus what the forum post claimed, and how did you establish the difference?
+  - Which single control would have prevented this, and which would have detected it sooner?
+  - Did storing weak password hashes and card references change your response — and should we store them at all?

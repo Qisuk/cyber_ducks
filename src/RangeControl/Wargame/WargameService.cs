@@ -4,9 +4,14 @@ namespace RangeControl.Wargame;
 
 public sealed record Exercise(
     int Id, string ScenarioId, string Title, string Status,
-    DateTimeOffset CreatedAt, DateTimeOffset? StartedAt, DateTimeOffset? EndedAt);
+    DateTimeOffset CreatedAt, DateTimeOffset? StartedAt, DateTimeOffset? EndedAt,
+    double Speed, bool Autoplay);
 public sealed record Participant(int Id, string Name, string Role);
 public sealed record InjectRelease(string InjectId, DateTimeOffset ReleasedAt, string ReleasedBy);
+/// <summary>A facilitator-authored timeline message / ad-hoc inject (not from the scenario file).</summary>
+public sealed record TimelineMessage(
+    int Id, string Phase, IReadOnlyList<string> Audience, string Sender, string Title, string Body,
+    DateTimeOffset CreatedAt, string CreatedBy);
 public sealed record Decision(
     int Id, DateTimeOffset MadeAt, string Phase, string Text, string Rationale, string? ParticipantName, string? ParticipantRole);
 public sealed record NodeState(string Node, string Layer, string State, string Note, DateTimeOffset ChangedAt, string ChangedBy);
@@ -76,6 +81,14 @@ public sealed class WargameService(NpgsqlDataSource db, WargameEvents events)
     public Task EndAsync(int id, CancellationToken ct = default) => ExecuteAsync(id,
         "UPDATE exercises SET status = 'ended', ended_at = now() WHERE id = @id AND status = 'running'", ct);
 
+    /// <summary>Clock speed multiplier (1 = real time). Clamped to a sane range.</summary>
+    public Task SetSpeedAsync(int id, double speed, CancellationToken ct = default) => ExecuteAsync(id,
+        "UPDATE exercises SET speed = @speed WHERE id = @id", ct,
+        ("speed", Math.Clamp(speed, 1, 100)));
+
+    public Task SetAutoplayAsync(int id, bool autoplay, CancellationToken ct = default) => ExecuteAsync(id,
+        "UPDATE exercises SET autoplay = @autoplay WHERE id = @id", ct, ("autoplay", autoplay));
+
     public async Task<IReadOnlyList<Participant>> GetParticipantsAsync(int exerciseId, CancellationToken ct = default)
     {
         var list = new List<Participant>();
@@ -144,6 +157,48 @@ public sealed class WargameService(NpgsqlDataSource db, WargameEvents events)
             ("participant", (object?)participantId ?? DBNull.Value), ("phase", phase),
             ("decision", decision), ("rationale", rationale));
 
+    public async Task<IReadOnlyList<TimelineMessage>> GetMessagesAsync(int exerciseId, CancellationToken ct = default)
+    {
+        var list = new List<TimelineMessage>();
+        await using var cmd = db.CreateCommand(
+            "SELECT id, phase, audience, sender, title, body, created_at, created_by " +
+            "FROM timeline_messages WHERE exercise_id = @id ORDER BY created_at");
+        cmd.Parameters.AddWithValue("id", exerciseId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            list.Add(new TimelineMessage(reader.GetInt32(0), reader.GetString(1),
+                reader.GetFieldValue<string[]>(2), reader.GetString(3), reader.GetString(4), reader.GetString(5),
+                reader.GetFieldValue<DateTimeOffset>(6), reader.GetString(7)));
+        }
+        return list;
+    }
+
+    public Task AddMessageAsync(int exerciseId, string phase, IReadOnlyList<string> audience, string sender,
+        string title, string body, string by, CancellationToken ct = default) =>
+        ExecuteAsync(exerciseId,
+            """
+            INSERT INTO timeline_messages (exercise_id, phase, audience, sender, title, body, created_by)
+            VALUES (@id, @phase, @audience, @sender, @title, @body, @by)
+            """, ct,
+            ("phase", phase), ("audience", audience.ToArray()), ("sender", sender),
+            ("title", title), ("body", body), ("by", by));
+
+    public Task EditMessageAsync(int exerciseId, int messageId, string phase, IReadOnlyList<string> audience,
+        string sender, string title, string body, CancellationToken ct = default) =>
+        ExecuteAsync(exerciseId,
+            """
+            UPDATE timeline_messages SET phase = @phase, audience = @audience, sender = @sender,
+                   title = @title, body = @body
+            WHERE id = @msg AND exercise_id = @id
+            """, ct,
+            ("msg", messageId), ("phase", phase), ("audience", audience.ToArray()),
+            ("sender", sender), ("title", title), ("body", body));
+
+    public Task DeleteMessageAsync(int exerciseId, int messageId, CancellationToken ct = default) =>
+        ExecuteAsync(exerciseId,
+            "DELETE FROM timeline_messages WHERE id = @msg AND exercise_id = @id", ct, ("msg", messageId));
+
     /// <summary>The latest state of every node on each layer. Nodes never set are "normal".</summary>
     public async Task<IReadOnlyList<NodeState>> GetNodeStatesAsync(int exerciseId, CancellationToken ct = default)
     {
@@ -194,6 +249,9 @@ public sealed class WargameService(NpgsqlDataSource db, WargameEvents events)
             UNION ALL
             SELECT c.changed_at, 'defence', c.vuln_id, c.old_mode || ' -> ' || c.new_mode, c.changed_by
               FROM flag_changes c, x WHERE c.changed_at BETWEEN x.t0 AND x.t1
+            UNION ALL
+            SELECT created_at, 'message', sender, title, created_by
+              FROM timeline_messages WHERE exercise_id = @id
             ORDER BY 1
             """);
         cmd.Parameters.AddWithValue("id", exerciseId);
@@ -207,7 +265,7 @@ public sealed class WargameService(NpgsqlDataSource db, WargameEvents events)
     }
 
     private const string ExerciseSelect =
-        "SELECT id, scenario_id, title, status, created_at, started_at, ended_at FROM exercises";
+        "SELECT id, scenario_id, title, status, created_at, started_at, ended_at, speed, autoplay FROM exercises";
 
     private static async Task<List<Exercise>> ReadExercisesAsync(NpgsqlCommand cmd, CancellationToken ct)
     {
@@ -218,7 +276,8 @@ public sealed class WargameService(NpgsqlDataSource db, WargameEvents events)
             list.Add(new Exercise(reader.GetInt32(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
                 reader.GetFieldValue<DateTimeOffset>(4),
                 reader.IsDBNull(5) ? null : reader.GetFieldValue<DateTimeOffset>(5),
-                reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6)));
+                reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6),
+                (double)reader.GetDecimal(7), reader.GetBoolean(8)));
         }
         return list;
     }

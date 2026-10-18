@@ -1,0 +1,148 @@
+# Wargame scenario (ADR-0008). Hybrid tabletop: players may investigate the real range telemetry
+# in Grafana, but decide at tabletop level. The facilitator releases injects from the Ops Console;
+# `at_minute` is the suggested time after the exercise starts. Phases follow NIST SP 800-61r2.
+#
+# Centres on VULN-WEBHOOK-01 (payment webhooks accepted without a valid signature), letting an
+# attacker forge "payment succeeded" callbacks and get goods shipped for free. Related:
+# VULN-LOGIC-01 (server trusts client-supplied prices/totals). Teaching nuance: in VULNERABLE mode
+# the forged callback is ACCEPTED, so nothing is rejected and the "webhook rejected" alert does NOT
+# fire — the fraud is silent in telemetry until reconciliation. The alert only fires once the fix is
+# on and real forgeries start bouncing.
+
+id: payment-webhook-fraud
+title: "Paid in full?"
+summary: Orders are shipping as "paid", but the money never arrives in the payment provider's settlement.
+duration_minutes: 75
+
+briefing: |
+  Rubber Duck Emporium Ltd (12 staff, ~4,000 customers) takes card payments through a payment
+  provider. When a payment succeeds, the provider calls the shop back with a webhook, and the shop
+  marks the order paid and ready to ship. Finance reconciles shop "paid" orders against the
+  provider's settlement report each morning.
+
+  It is Friday, 08:30. This morning's reconciliation doesn't balance: more orders are marked paid in
+  the shop than the provider actually settled, and some have already shipped. You are the incident
+  response team. Log every decision and its reason in the Ops Console. Grafana
+  (http://localhost:3000) has the shop's logs, traces and metrics.
+
+injects:
+  - id: I1
+    at_minute: 0
+    phase: detection_analysis
+    audience: [all]
+    from: Finance
+    title: Reconciliation doesn't balance
+    body: |
+      "We have 23 orders marked 'paid' and shipped overnight that don't appear in the provider's
+      settlement at all. Total value about £1,900. Either the provider dropped them, or something is
+      marking orders paid without a real payment."
+
+  - id: I2
+    at_minute: 10
+    phase: detection_analysis
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: The 'paid' events were forged
+    body: |
+      "The 23 orders were marked paid by inbound webhook calls — but the traces show those calls came
+      from an external client, not the provider, and we accept webhooks without verifying the
+      signature (VULN-WEBHOOK-01). Someone is POSTing fake 'payment succeeded' events for order ids
+      they chose. A few also had suspiciously round totals."
+
+  - id: I3
+    at_minute: 18
+    phase: detection_analysis
+    audience: [tech_lead, incident_commander]
+    from: Security analyst
+    title: Why didn't anything alert?
+    body: |
+      "Nothing alerted because nothing was rejected — we accepted every forged callback as valid, so
+      to the system it looked like normal business. We only know because Finance reconciled by hand.
+      I can list the forging client's requests and the affected order ids from the traces."
+
+  - id: I4
+    at_minute: 28
+    phase: containment_eradication_recovery
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: Turn on signature verification
+    body: |
+      "We can require a valid signature on webhooks (flip VULN-WEBHOOK-01 to secure in Range Control)
+      so forged callbacks are rejected. Should we also freeze shipping on unsettled orders, and hold
+      any order whose 'paid' event we can't match to the provider? What do we preserve as evidence
+      first?"
+
+  - id: I5
+    at_minute: 38
+    phase: containment_eradication_recovery
+    audience: [exec, incident_commander]
+    from: Managing Director
+    title: Money, goods, and the sale
+    body: |
+      "How much have we actually lost, and can we stop more going out the door today? I don't want to
+      freeze legitimate paid orders on a Friday. Give me a recommendation that protects revenue
+      without blocking real customers."
+
+  - id: I6
+    at_minute: 48
+    phase: containment_eradication_recovery
+    audience: [legal_dpo, exec]
+    from: Finance / Fraud
+    title: Is this reportable, and to whom?
+    body: |
+      "This looks like payment fraud, not a personal-data breach — the attacker chose order ids, they
+      didn't read customer data. Do we owe anyone a notification: the payment provider, the acquirer,
+      Action Fraud? And can we recover the goods or the value on the shipped orders?"
+
+  - id: I7
+    at_minute: 60
+    phase: containment_eradication_recovery
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: Confirm forgeries now bounce
+    body: |
+      "Signature verification is on. Re-send a forged callback and confirm it's now rejected (that
+      rejection will finally show up as an alert). How do we reconcile going forward so a gap between
+      'shop paid' and 'provider settled' is caught automatically, not by hand?"
+
+  - id: I8
+    at_minute: 72
+    phase: post_incident
+    audience: [all]
+    from: Board
+    title: Lessons learned
+    body: |
+      "One page: what happened, how much it cost, why our monitoring missed it, what we fixed, and
+      the reconciliation control that will catch a 'paid-but-not-settled' gap in future."
+
+# Facilitator-only. Not shown to players.
+facilitator_notes: |
+  Ground truth: the payment webhook endpoint accepts callbacks without verifying the provider's
+  signature (VULN-WEBHOOK-01 vulnerable), so an attacker forges "payment succeeded" events for order
+  ids of their choosing and the shop ships for free. This is an integrity/financial-fraud incident,
+  NOT a personal-data breach — the attacker never reads customer data, they write fake payment
+  state. Suggested ground-truth map: store-api = compromised (accepts forged callbacks),
+  payment-stub = normal (the real provider is not involved in the forgery), postgres = suspected
+  (payment/invoice rows written on forged events), store-web = normal. Set at start; reveal only in
+  the debrief.
+
+  Teaching nuance on detection: while vulnerable, forged callbacks are ACCEPTED, so nothing is
+  rejected and the "payment webhook rejected" alert stays silent — the fraud is invisible in
+  telemetry until Finance reconciles. Only AFTER flipping VULN-WEBHOOK-01 to secure do fresh
+  forgeries get rejected and the alert fire (and the Grafana bridge then raises store-api on the
+  DETECTED map). Draw out that "no alert" did not mean "no incident".
+
+  Key decision points to look for:
+  - Establishing that this is fraud, not a provider glitch, from the traces (external client, chosen
+    order ids, unmatched settlement).
+  - Containment that protects revenue without freezing legitimate orders: verify signatures
+    (VULN-WEBHOOK-01 -> secure), hold only unsettled/unmatched orders, freeze shipping selectively.
+  - Correctly scoping this as financial fraud with no personal-data breach — notification goes to
+    provider/acquirer/Action Fraud, not the ICO.
+  - Adding automated reconciliation (shop-paid vs provider-settled) as the lasting detective control.
+
+debrief_questions:
+  - Why did our monitoring stay silent, and what does that teach about "accepted" versus "safe"?
+  - How did you size the financial loss and stop further shipments without blocking real customers?
+  - Was this a personal-data breach? How did that judgement change who you had to notify?
+  - What detective control (beyond the signature fix) would have caught this on day one?

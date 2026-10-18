@@ -45,6 +45,9 @@ builder.Services.AddHttpClient("grafana", client =>
 });
 builder.Services.AddHostedService<GrafanaAlertBridge>();
 
+// Autoplay: release scenario injects at their speed-scaled times (demo / solo runthrough, ADR-0008).
+builder.Services.AddHostedService<ExerciseClock>();
+
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtection:KeyPath"] ?? "/keys"))
     .SetApplicationName("cyber-ducks-rangecontrol");

@@ -26,7 +26,15 @@
             <span class="badge @Wargames.StatusBadge(_exercise.Status) ms-1">@_exercise.Status</span>
             @if (_exercise.StartedAt is not null)
             {
-                <span class="ms-2 fw-semibold text-light">T+@ElapsedMinutes min</span>
+                <span class="ms-2 fw-semibold text-light">T+@ScaledElapsedMinutes min</span>
+                @if (_exercise.Speed != 1)
+                {
+                    <span class="badge text-bg-info ms-1" title="Clock speed">@FormatSpeed(_exercise.Speed)×</span>
+                }
+                @if (_exercise.Autoplay)
+                {
+                    <span class="badge text-bg-warning ms-1">autoplay</span>
+                }
             }
         </div>
     </div>
@@ -40,6 +48,19 @@
         </select>
         @if (IsFacilitator)
         {
+            @* Clock speed + autoplay for manual runthrough / demo (ADR-0008). *@
+            <label class="small text-secondary" for="speed">Speed</label>
+            <select id="speed" class="form-select form-select-sm w-auto" @onchange="OnSpeedChanged">
+                @foreach (var s in Speeds)
+                {
+                    <option value="@s" selected="@(FormatSpeed(_exercise.Speed) == FormatSpeed(s))">@FormatSpeed(s)×</option>
+                }
+            </select>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="autoplay"
+                       checked="@_exercise.Autoplay" @onchange="OnAutoplayChanged" disabled="@(!IsRunning)" />
+                <label class="form-check-label small" for="autoplay">Autoplay</label>
+            </div>
             @if (_exercise.Status == "planned")
             {
                 <button class="btn btn-sm btn-warning" @onclick="Start">Start exercise</button>
@@ -195,7 +216,7 @@
                 @foreach (var item in visible)
                 {
                     var release = _releases.FirstOrDefault(r => r.InjectId == item.Id);
-                    var due = release is null && IsRunning && ElapsedMinutes >= item.AtMinute;
+                    var due = release is null && IsRunning && ScaledElapsedMinutes >= item.AtMinute;
                     <div class="inject @(release is not null ? "inject-released" : due ? "inject-due" : "")">
                         <div class="d-flex justify-content-between align-items-start gap-2">
                             <div>
@@ -233,6 +254,90 @@
         {
             <div class="card-dark mb-3 small text-warning">Scenario file <code>@_exercise.ScenarioId</code> not found.</div>
         }
+
+        @* --- Facilitator messages / ad-hoc injects added to the timeline --------------------- *@
+        <div class="card-dark mb-3">
+            <h2 class="h6 text-uppercase text-secondary">Messages</h2>
+            @{ var visibleMsgs = VisibleMessages().ToList(); }
+            @if (visibleMsgs.Count == 0 && !IsFacilitator)
+            {
+                <p class="small text-secondary mb-0">No messages for your role yet.</p>
+            }
+            @foreach (var m in visibleMsgs)
+            {
+                <div class="inject inject-released">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <span class="small text-secondary">@Clock(m.CreatedAt) · @PhaseLabel(m.Phase) · @m.Sender</span>
+                            <div class="fw-semibold">@m.Title</div>
+                        </div>
+                        @if (IsFacilitator)
+                        {
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-link text-secondary p-0 me-2" @onclick="() => EditMessage(m)">edit</button>
+                                <button class="btn btn-link text-danger p-0" @onclick="() => DeleteMessage(m.Id)">delete</button>
+                            </div>
+                        }
+                    </div>
+                    <div class="small">
+                        @foreach (var role in m.Audience)
+                        {
+                            <span class="badge text-bg-dark border border-secondary me-1">@RoleLabel(role)</span>
+                        }
+                    </div>
+                    @if (m.Body.Length > 0)
+                    {
+                        <div class="inject-body mt-1">@m.Body</div>
+                    }
+                </div>
+            }
+
+            @if (IsFacilitator)
+            {
+                <hr class="border-secondary" />
+                <div class="small text-secondary mb-2">@(_editingMsgId is null ? "Add a message / ad-hoc inject" : $"Editing message #{_editingMsgId}")</div>
+                <div class="row g-2">
+                    <div class="col-5">
+                        <input class="form-control form-control-sm" placeholder="From (sender)" @bind="_msgSender" />
+                    </div>
+                    <div class="col-7">
+                        <select class="form-select form-select-sm" @bind="_msgPhase" aria-label="Phase">
+                            @foreach (var p in WargameService.Phases) { <option value="@p">@PhaseLabel(p)</option> }
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <input class="form-control form-control-sm" placeholder="Title" @bind="_msgTitle" />
+                    </div>
+                    <div class="col-12">
+                        <textarea class="form-control form-control-sm" rows="2" placeholder="Message body" @bind="_msgBody"></textarea>
+                    </div>
+                    <div class="col-12 d-flex flex-wrap gap-2">
+                        @foreach (var r in Audiences)
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="aud-@r"
+                                       checked="@_msgAudience.Contains(r)" @onchange="() => ToggleAudience(r)" />
+                                <label class="form-check-label small" for="aud-@r">@RoleLabel(r)</label>
+                            </div>
+                        }
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-sm btn-warning" @onclick="SaveMessage"
+                                disabled="@(!IsRunning || string.IsNullOrWhiteSpace(_msgTitle) || _msgAudience.Count == 0)">
+                            @(_editingMsgId is null ? "Post message" : "Save changes")
+                        </button>
+                        @if (_editingMsgId is not null)
+                        {
+                            <button class="btn btn-sm btn-outline-light ms-1" @onclick="CancelEditMessage">Cancel</button>
+                        }
+                        @if (!IsRunning)
+                        {
+                            <span class="small text-secondary ms-2">Messages can be posted while the exercise is running.</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
 
         <div class="card-dark">
             <h2 class="h6 text-uppercase text-secondary">Participants</h2>
@@ -272,6 +377,15 @@
     private IReadOnlyList<InjectRelease> _releases = [];
     private IReadOnlyList<Decision> _decisions = [];
     private IReadOnlyList<NodeState> _states = [];
+    private IReadOnlyList<TimelineMessage> _messages = [];
+
+    internal static readonly double[] Speeds = [1, 2, 3, 5, 10, 60, 100];
+    internal static readonly string[] Audiences =
+        ["all", "incident_commander", "tech_lead", "comms", "legal_dpo", "exec"];
+
+    private string _msgSender = "Facilitator", _msgTitle = "", _msgBody = "", _msgPhase = "detection_analysis";
+    private HashSet<string> _msgAudience = ["all"];
+    private int? _editingMsgId;
 
     private int _actingAsId;
     private bool _showTruth;
@@ -290,6 +404,13 @@
         ? (int)((_exercise.EndedAt ?? DateTimeOffset.UtcNow) - started).TotalMinutes
         : 0;
 
+    // Scenario time = real elapsed scaled by the clock speed; this is what inject at_minute is in.
+    private int ScaledElapsedMinutes => _exercise?.StartedAt is { } started
+        ? (int)(((_exercise.EndedAt ?? DateTimeOffset.UtcNow) - started).TotalMinutes * _exercise.Speed)
+        : 0;
+
+    internal static string FormatSpeed(double s) => s.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -305,9 +426,10 @@
         _scenario = _exercise is null ? null : Catalog.Find(_exercise.ScenarioId);
         _loaded = true;
 
-        // Live updates: other participants' changes, and the T+ clock.
+        // Live updates: other participants' changes, and the scenario clock. Tick every second so the
+        // scaled T+ and "due" highlighting stay responsive at high speeds (it's just a re-render).
         Events.Changed += OnChanged;
-        _clock = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(20));
+        _clock = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }
 
     private async Task ReloadAsync()
@@ -321,6 +443,7 @@
         _releases = await Games.GetReleasesAsync(Id);
         _decisions = await Games.GetDecisionsAsync(Id);
         _states = await Games.GetNodeStatesAsync(Id);
+        _messages = await Games.GetMessagesAsync(Id);
     }
 
     private void OnChanged(int exerciseId)
@@ -349,6 +472,73 @@
     private async Task Start() => await Games.StartAsync(Id);
     private async Task End() => await Games.EndAsync(Id);
     private async Task Release(Inject inject) => await Games.ReleaseInjectAsync(Id, inject.Id, Actor);
+
+    private async Task OnSpeedChanged(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var speed))
+        {
+            await Games.SetSpeedAsync(Id, speed);
+        }
+    }
+
+    private async Task OnAutoplayChanged(ChangeEventArgs e) =>
+        await Games.SetAutoplayAsync(Id, e.Value is true);
+
+    // Facilitator sees every message; other roles see those addressed to them (or to all).
+    private IEnumerable<TimelineMessage> VisibleMessages() =>
+        _messages.Where(m => IsFacilitator
+            || m.Audience.Contains("all") || m.Audience.Contains(ActingAs?.Role ?? ""));
+
+    private void ToggleAudience(string role)
+    {
+        if (!_msgAudience.Remove(role))
+        {
+            _msgAudience.Add(role);
+        }
+    }
+
+    private async Task SaveMessage()
+    {
+        var audience = _msgAudience.ToList();
+        var sender = string.IsNullOrWhiteSpace(_msgSender) ? "Facilitator" : _msgSender.Trim();
+        if (_editingMsgId is { } msgId)
+        {
+            await Games.EditMessageAsync(Id, msgId, _msgPhase, audience, sender, _msgTitle.Trim(), _msgBody.Trim());
+        }
+        else
+        {
+            await Games.AddMessageAsync(Id, _msgPhase, audience, sender, _msgTitle.Trim(), _msgBody.Trim(), Actor);
+        }
+        CancelEditMessage();
+    }
+
+    private void EditMessage(TimelineMessage m)
+    {
+        _editingMsgId = m.Id;
+        _msgSender = m.Sender;
+        _msgPhase = m.Phase;
+        _msgTitle = m.Title;
+        _msgBody = m.Body;
+        _msgAudience = [.. m.Audience];
+    }
+
+    private void CancelEditMessage()
+    {
+        _editingMsgId = null;
+        _msgSender = "Facilitator";
+        _msgTitle = _msgBody = "";
+        _msgPhase = "detection_analysis";
+        _msgAudience = ["all"];
+    }
+
+    private async Task DeleteMessage(int messageId)
+    {
+        await Games.DeleteMessageAsync(Id, messageId);
+        if (_editingMsgId == messageId)
+        {
+            CancelEditMessage();
+        }
+    }
 
     private async Task SetState(string layer, string state, string note)
     {
