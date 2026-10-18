@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Security.Claims;
 using CyberDucks.Shared.Contracts;
+using CyberDucks.Shared.Defences;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Store.Api.Data;
@@ -25,6 +26,10 @@ public static class AuthEndpoints
         auth.MapPut("/profile", UpdateProfileAsync).RequireAuthorization();
         // Internal: called by store-web after a successful OIDC flow (not reachable externally).
         auth.MapPost("/social", SocialLoginAsync);
+        // Password reset by email (emails land in Mailpit). VULN-RESET-01 governs token strength and
+        // whether the response reveals that an account exists.
+        auth.MapPost("/forgot-password", ForgotPasswordAsync);
+        auth.MapPost("/reset-password", ResetPasswordAsync);
 
         return auth;
     }
@@ -148,6 +153,61 @@ public static class AuthEndpoints
         log.LogInformation("Registered new customer {UserId}", user.Id);
 
         return IssueToken(jwt, user);
+    }
+
+    private static async Task<IResult> ForgotPasswordAsync(
+        ForgotPasswordRequest request, StoreDbContext db, PasswordResetStore resets,
+        Email.IEmailSender email, CyberDucks.Shared.Defences.IDefenceFlags flags,
+        IConfiguration config, ILogger<Program> log, CancellationToken ct)
+    {
+        var address = request.Email?.Trim().ToLowerInvariant();
+        var user = string.IsNullOrEmpty(address)
+            ? null
+            : await db.Users.SingleOrDefaultAsync(u => u.Email == address, ct);
+        var secure = flags.IsSecure("VULN-RESET-01", "store-api password reset");
+
+        if (user is not null)
+        {
+            var token = PasswordResetStore.NewToken(secure);
+            resets.Add(token, user.Id, TimeSpan.FromMinutes(secure ? 15 : 60));
+            var baseUrl = config["Store:PublicBaseUrl"] ?? "http://localhost:8080";
+            var link = $"{baseUrl}/reset-password?token={token}";
+            await email.SendAsync(user.Email, "Reset your Rubber Duck Emporium password",
+                $"We received a request to reset your password.\n\nUse this link within "
+                + $"{(secure ? "15 minutes" : "an hour")}:\n{link}\n\nIf you didn't ask for this, ignore this email.", ct);
+            log.LogInformation("Password reset requested for user {UserId}", user.Id);
+        }
+
+        // VULN-RESET-01 vulnerable also leaks whether the account exists (enumeration); secure is generic.
+        if (!secure && user is null)
+        {
+            return Results.NotFound(new { message = "No account with that email." });
+        }
+        return Results.Ok(new { message = "If that email has an account, a reset link has been sent." });
+    }
+
+    private static async Task<IResult> ResetPasswordAsync(
+        ResetPasswordRequest request, StoreDbContext db, PasswordResetStore resets,
+        ILogger<Program> log, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrEmpty(request.NewPassword))
+        {
+            return Results.BadRequest(new { message = "A token and a new password are required." });
+        }
+        if (resets.Consume(request.Token) is not { } userId)
+        {
+            return Results.BadRequest(new { message = "Invalid or expired reset token." });
+        }
+        var user = await db.Users.FindAsync([userId], ct);
+        if (user is null)
+        {
+            return Results.BadRequest(new { message = "Invalid or expired reset token." });
+        }
+        user.PasswordHashLegacy = PasswordHashing.LegacyHash(request.NewPassword);
+        user.PasswordHash = PasswordHashing.SecureHash(request.NewPassword);
+        await db.SaveChangesAsync(ct);
+        log.LogInformation("Password reset completed for user {UserId}", user.Id);
+        return Results.Ok(new { message = "Your password has been updated." });
     }
 
     private static async Task<IResult> LoginAsync(

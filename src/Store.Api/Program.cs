@@ -48,6 +48,10 @@ builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton<JwtIssuer>();
 builder.Services.AddHostedService<PersonaPasswordSeeder>();
 
+// Password reset by email → Mailpit (flow F15). VULN-RESET-01 governs reset-token strength.
+builder.Services.AddSingleton<Store.Api.Auth.PasswordResetStore>();
+builder.Services.AddSingleton<Store.Api.Email.IEmailSender, Store.Api.Email.SmtpEmailSender>();
+
 // The toggled defences (ADR-0011).
 builder.Services.AddDefence<IPasswordVerifier, VulnerablePasswordVerifier, SecurePasswordVerifier>("VULN-PWD-01");
 builder.Services.AddDefence<ILoginGuard, VulnerableLoginGuard, SecureLoginGuard>("VULN-AUTH-01");

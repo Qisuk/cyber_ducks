@@ -115,6 +115,10 @@ VULN-EGRESS-01:
   simulate: Lure the agent to fetch the honeypot/partner link in order 1002's note (fetch_reference). Vulnerable lets the fetch reach any host, so data exfiltrates to / ingests from outside.
   mitigation: Secure restricts agent tool fetches to an allow-list of store hosts; anything else is refused. Defence in depth with the sealed agent network.
 
+VULN-RESET-01:
+  simulate: Request a reset for a known email (POST /api/auth/forgot-password) and read the mail in Mailpit (http://localhost:8025). Vulnerable issues a guessable 6-digit token and reveals whether the account exists, so the reset can be intercepted or brute-forced to take over the account.
+  mitigation: Secure issues a 256-bit single-use token with a short expiry and always returns a generic response, so tokens can't be guessed and accounts can't be enumerated.
+
 VULN-WEBHOOK-01:
   simulate: POST a forged "payment succeeded" webhook to store-api for an order id you choose. Vulnerable accepts it unsigned and marks the order paid.
   mitigation: Secure verifies the provider's HMAC signature and rejects any webhook that doesn't match.

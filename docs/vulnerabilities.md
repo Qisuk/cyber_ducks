@@ -40,6 +40,7 @@ VULN-GRAFANA-01 and VULN-WAF-01.
 | [VULN-OAUTH-02](../attacks/VULN-OAUTH-02/) | Strict OAuth redirect-URI matching | restart | A07 | ✅ |
 | [VULN-OAUTH-03](../attacks/VULN-OAUTH-03/) | Link social logins only on a verified email | | A07 | ✅ |
 | [VULN-PWD-01](../attacks/VULN-PWD-01/) | Password storage | | A02 | ✅ |
+| [VULN-RESET-01](../attacks/VULN-RESET-01/) | Strong, single-use password-reset tokens (no enumeration); email via Mailpit | | A07 | ✅ |
 | [VULN-PCI-01](../attacks/VULN-PCI-01/) | Card data storage (tokenisation) | | A02 / PCI | ✅ |
 
 ## AI agent (OWASP LLM Top 10)

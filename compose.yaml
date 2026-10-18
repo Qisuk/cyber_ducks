@@ -80,6 +80,12 @@ services:
       PaymentStub__BaseUrl: http://payment-stub:8080/
       # Shared webhook secret (fake). VULN-WEBHOOK-01 decides whether the signature is checked.
       Webhook__Secret: ${WEBHOOK_SECRET}
+      # Outbound mail to Mailpit (flow F15): password-reset / receipt emails. Reset link host is the
+      # store's public origin so a clicked link in a caught mail lands back on the site.
+      Smtp__Host: mailpit
+      Smtp__Port: "1025"
+      Smtp__From: no-reply@duckstore.test
+      Store__PublicBaseUrl: ${STORE_PUBLIC_URL:-http://localhost:8080}
       <<: *otel
       OTEL_SERVICE_NAME: store-api
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
@@ -287,6 +293,29 @@ services:
     logging: *logging
     restart: unless-stopped
     networks: [edge, svc]
+
+  # Mail catcher: store-api sends password-reset and receipt emails here over SMTP (flow F15). The
+  # web UI (published, localhost) is the "inbox" — in the reset-interception scenario it stands in for
+  # anyone who can read the mail. Holds fake mail only; nothing leaves the range.
+  mailpit:
+    image: axllent/mailpit:v1.21.3
+    labels: { range.zone: Z7, range.logs: otlp }
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-8025}:8025"   # web inbox
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    mem_limit: 128m
+    cpus: 0.5
+    logging: *logging
+    restart: unless-stopped
+    networks: [svc]
 
   # Local OIDC provider standing in for Google and Meta (ADR-0003). Two realms = two mock IdPs.
   # KC_HOSTNAME is the browser-facing URL (issuer); backchannel-dynamic lets store-web's container

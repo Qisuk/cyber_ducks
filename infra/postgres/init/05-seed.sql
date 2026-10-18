@@ -143,7 +143,8 @@ INSERT INTO defence_flags (vuln_id, title, kind, requires_restart) VALUES
   ('VULN-HEADERS-01', 'Security response headers (CSP) on store-web',          'code', false),
   ('VULN-GRAFANA-01', 'Grafana requires login (no anonymous Admin)',           'infra', true),
   ('VULN-WAF-01',     'Edge WAF blocks naive attack signatures',               'infra', true),
-  ('VULN-EGRESS-01',  'Agent tool fetches restricted to store hosts (no exfil/ingest)', 'code', false);
+  ('VULN-EGRESS-01',  'Agent tool fetches restricted to store hosts (no exfil/ingest)', 'code', false),
+  ('VULN-RESET-01',   'Strong, single-use password-reset tokens (no enumeration)',    'code', false);
 
 INSERT INTO presets (id, name, description) VALUES
   (1, 'All vulnerable', 'Every defence off: the range as attackers first find it'),
