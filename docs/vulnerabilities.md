@@ -8,9 +8,10 @@ and secure code path; most apply within seconds, a few need a restart (marked be
 - **Detection** per ID: [`detections/<ID>.md`](../detections)
 - The flag titles below describe the **secure** behaviour (what "secure" turns on).
 
-**Catalogued so far:** VULN-IDOR-01, VULN-SQLI-01, VULN-AUTHZ-01, VULN-LLM-06 (slice), plus
-VULN-MASS-01, VULN-LOGIC-01, VULN-LOGIC-02, VULN-AUTH-01, VULN-WEBHOOK-01, VULN-INFO-01 — each with
-a full README + confirm probe + detection. The rest are wired as toggles; write-ups are pending.
+**Catalogued so far:** the application/API set (IDOR, SQLI, AUTHZ, MASS, LOGIC-01/02, AUTH, INFO),
+the browser tier (XSS, CSRF, SESSION), WEBHOOK, the DB-guard family, and LLM-06 — each with a README
++ confirm probe (or deterministic test) + detection. Pending: OAUTH-01/02/03, PWD, PCI, DBROLE,
+LLM-01/02/05, MCP-01, LOG-01.
 
 ## Application & API
 
@@ -22,10 +23,10 @@ a full README + confirm probe + detection. The rest are wired as toggles; write-
 | [VULN-MASS-01](../attacks/VULN-MASS-01/) | Allow-listed fields on profile updates | | API6 / Mass assignment | ✅ |
 | [VULN-LOGIC-01](../attacks/VULN-LOGIC-01/) | Server recomputes prices and totals | | Business logic | ✅ |
 | [VULN-LOGIC-02](../attacks/VULN-LOGIC-02/) | Order state rules enforced server-side | | Business logic | ✅ |
-| VULN-XSS-01 | Output encoding of user content | | A03 XSS | |
-| VULN-CSRF-01 | Anti-forgery tokens | | A01 / CSRF | |
+| [VULN-XSS-01](../attacks/VULN-XSS-01/) | Output encoding of user content | | A03 XSS | ✅ |
+| [VULN-CSRF-01](../attacks/VULN-CSRF-01/) | Anti-forgery tokens | | A01 / CSRF | ✅ |
 | [VULN-AUTH-01](../attacks/VULN-AUTH-01/) | Login throttling and lockout | | A07 | ✅ |
-| VULN-SESSION-01 | Session and token handling | | A07 | |
+| [VULN-SESSION-01](../attacks/VULN-SESSION-01/) | Session and token handling | | A07 | ✅ |
 | [VULN-INFO-01](../attacks/VULN-INFO-01/) | Generic error responses | | A05 | ✅ |
 | VULN-DBROLE-01 | store-api connects as least-privilege role | restart | A05 | |
 

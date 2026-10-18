@@ -39,4 +39,18 @@ login() {
     | sed -n 's/.*"token":"\([^"]*\)".*/\1/p'
 }
 
+# The browser-facing store-web (cookie auth), for probes that exercise the UI tier.
+STORE_WEB="${STORE_WEB_URL:-http://localhost:8080}"
+
+# Sign in to store-web with a cookie jar (form login sets the duck_auth cookie).
+# Usage: web_login <jar> <email> <password>  -> 0 on success
+web_login() {
+    # No returnUrl field: store-web currently 500s when login is given one (known bug).
+    curl -s -m 10 -c "$1" -b "$1" -o /dev/null \
+        -X POST "$STORE_WEB/account/login" \
+        --data-urlencode "email=$2" --data-urlencode "password=$3"
+    # A set duck_auth cookie means success.
+    grep -q 'duck_auth' "$1"
+}
+
 hr() { printf '%s\n' '----------------------------------------------------------------------'; }
