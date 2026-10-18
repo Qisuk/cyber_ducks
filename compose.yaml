@@ -351,6 +351,8 @@ services:
       - lgtmdata:/data
       - ./infra/grafana/dashboards:/otel-lgtm/range-dashboards:ro
       - ./infra/grafana/range-dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/range.yaml:ro
+      # Phase 8a: provisioned alert rules (detections/*.md as firing alerts).
+      - ./infra/grafana/alerting/range-alerts.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/range-alerts.yaml:ro
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/ready"]
       interval: 10s

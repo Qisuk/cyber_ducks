@@ -1,0 +1,215 @@
+# Provisioned Grafana alert rules for the range (Phase 8a). These turn the strongest
+# detections/*.md signatures into firing alerts, visible in Grafana → Alerting.
+# Thresholds are tuned for a normally-quiet range; adjust per your traffic.
+# Each rule carries a `range_detection` label (the VULN-ID) and a runbook annotation.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: range-detections
+    folder: Cyber Ducks
+    interval: 1m
+    rules:
+      # --- Login brute force (VULN-AUTH-01) --------------------------------------------------
+      - uid: range-auth-bruteforce
+        title: Login 401 spike (possible brute force / stuffing)
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning, range_detection: VULN-AUTH-01 }
+        annotations:
+          summary: High rate of failed logins on /api/auth/login.
+          runbook: attacks/VULN-AUTH-01 ; detections/VULN-AUTH-01.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              expr: sum(rate(http_server_request_duration_seconds_count{http_route="/api/auth/login",http_response_status_code="401"}[5m]))
+              instant: true
+              refId: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            model: { type: reduce, reducer: last, expression: A, refId: B, datasource: { type: __expr__, uid: __expr__ } }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              datasource: { type: __expr__, uid: __expr__ }
+              conditions: [{ evaluator: { type: gt, params: [0.2] } }]
+
+      # --- Server error spike (VULN-INFO-01 / injection probing) -----------------------------
+      - uid: range-5xx-spike
+        title: store-api 5xx spike (error probing / instability)
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning, range_detection: VULN-INFO-01 }
+        annotations:
+          summary: Elevated 5xx rate on store-api — often injection/error probing.
+          runbook: detections/VULN-INFO-01.md ; detections/VULN-SQLI-01.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              expr: sum(rate(http_server_request_duration_seconds_count{service_name="store-api",http_response_status_code=~"5.."}[5m]))
+              instant: true
+              refId: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            model: { type: reduce, reducer: last, expression: A, refId: B, datasource: { type: __expr__, uid: __expr__ } }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              datasource: { type: __expr__, uid: __expr__ }
+              conditions: [{ evaluator: { type: gt, params: [0.1] } }]
+
+      # --- Database errors (VULN-SQLI-01 payload development) --------------------------------
+      - uid: range-db-errors
+        title: store-api database errors (possible SQL injection probing)
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning, range_detection: VULN-SQLI-01 }
+        annotations:
+          summary: Postgres/Npgsql errors from store-api — payload development leaves these.
+          runbook: attacks/VULN-SQLI-01 ; detections/VULN-SQLI-01.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: sum(count_over_time({service_name="store-api"} |~ `(?i)npgsql|syntax error|unhandled exception` [5m]))
+              queryType: instant
+              refId: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            model: { type: reduce, reducer: last, expression: A, refId: B, datasource: { type: __expr__, uid: __expr__ } }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              datasource: { type: __expr__, uid: __expr__ }
+              conditions: [{ evaluator: { type: gt, params: [3] } }]
+
+      # --- Forged payment webhooks (VULN-WEBHOOK-01) ----------------------------------------
+      - uid: range-webhook-rejected
+        title: Payment webhook rejected (forged/unsigned callback)
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning, range_detection: VULN-WEBHOOK-01 }
+        annotations:
+          summary: store-api rejected a payment webhook with an invalid signature.
+          runbook: attacks/VULN-WEBHOOK-01 ; detections/VULN-WEBHOOK-01.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: sum(count_over_time({service_name="store-api"} |~ `(?i)rejected payment webhook` [5m]))
+              queryType: instant
+              refId: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            model: { type: reduce, reducer: last, expression: A, refId: B, datasource: { type: __expr__, uid: __expr__ } }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              datasource: { type: __expr__, uid: __expr__ }
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
+      # --- Database guard violations (VULN-GUARD-*) -----------------------------------------
+      - uid: range-guard-violation
+        title: Database guard violation (invalid write blocked)
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: info, range_detection: VULN-GUARD }
+        annotations:
+          summary: A DB guard blocked an invalid write — something is trying to store bad data.
+          runbook: attacks/VULN-GUARD-01 ; detections/VULN-GUARD.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: sum(count_over_time({service_name="store-api"} |~ `(?i)guard |violates check constraint` [5m]))
+              queryType: instant
+              refId: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            model: { type: reduce, reducer: last, expression: A, refId: B, datasource: { type: __expr__, uid: __expr__ } }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              datasource: { type: __expr__, uid: __expr__ }
+              conditions: [{ evaluator: { type: gt, params: [0] } }]
+
+      # --- OIDC correlation failures (VULN-OAUTH-01) ----------------------------------------
+      - uid: range-oidc-correlation
+        title: OIDC login correlation failures (login CSRF / replay attempts)
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning, range_detection: VULN-OAUTH-01 }
+        annotations:
+          summary: store-web rejected OIDC callbacks with bad/missing state — login CSRF or replay.
+          runbook: attacks/VULN-OAUTH-01 ; detections/VULN-OAUTH-01.md
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: sum(count_over_time({service_name="store-web"} |~ `(?i)correlation failed|nonce|oauth.*state` [5m]))
+              queryType: instant
+              refId: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            model: { type: reduce, reducer: last, expression: A, refId: B, datasource: { type: __expr__, uid: __expr__ } }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              datasource: { type: __expr__, uid: __expr__ }
+              conditions: [{ evaluator: { type: gt, params: [0] } }]

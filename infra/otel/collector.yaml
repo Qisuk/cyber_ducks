@@ -93,6 +93,15 @@ processors:
       - context: log
         statements:
           - replace_pattern(body, "\\n$", "")
+  # Phase 8a: redact card-number-like runs (13-19 consecutive digits) from log bodies before they
+  # reach storage, so a stray PAN in a log line is not retained (defence for VULN-PCI-01). A
+  # separators-free digit run that long is card-shaped; trace ids are hex and timestamps have
+  # separators, so this is targeted.
+  transform/redact:
+    log_statements:
+      - context: log
+        statements:
+          - replace_pattern(body, "\\b[0-9]{13,19}\\b", "[REDACTED-CARD]")
   batch: {}
 
 exporters:
@@ -118,7 +127,7 @@ service:
       exporters: [otlp_http/lgtm]
     logs:
       receivers: [otlp, file_log/docker]
-      processors: [memory_limiter, transform/logs, batch]
+      processors: [memory_limiter, transform/logs, transform/redact, batch]
       exporters: [otlp_http/lgtm]
     traces:
       receivers: [otlp]
