@@ -133,7 +133,7 @@ services:
     cpus: 1.0
     logging: *logging
     restart: unless-stopped
-    networks: [edge, svc, agent]
+    networks: [edge, svc, agent, flags]
 
   # Z3b tool gateway: the agent's only route to any API (ADR-0009). Calls store-api as the
   # customer (flow F22). Exposes the MCP endpoint at /mcp over Streamable HTTP; no public port.
@@ -159,7 +159,7 @@ services:
     cpus: 1.0
     logging: *logging
     restart: unless-stopped
-    networks: [svc, agent]
+    networks: [svc, agent, flags]
 
   # Z3a agent (untrusted): the customer chat agent. Reaches data only via agent-tools (flow F8).
   # No public port; store-web calls it internally and forwards the customer's JWT (flow F5).
@@ -189,7 +189,7 @@ services:
     cpus: 1.0
     logging: *logging
     restart: unless-stopped
-    networks: [agent]
+    networks: [agent, flags]
 
   # Local LLM inference (ADR-0004/0010), CPU-only. In the `local-llm` profile (on by default via
   # COMPOSE_PROFILES in .env); clear it for cloud-LLM runs to save ~3-4 GB of RAM. Pulls the model
@@ -269,6 +269,25 @@ services:
     restart: unless-stopped
     networks: [svc]
 
+  # Decoy "internal admin / data export" server (VULN-HONEYPOT-01). Nothing legitimate uses it; it is
+  # only linked from the store as bait. Every request logs a loud "HONEYPOT HIT" line → Loki → a
+  # Grafana alert → the wargame detected map. On `edge` so the proxy can route decoy paths to it (a
+  # browser following the bait), and on `svc` so agent-tools can reach it for the egress/exfil demo.
+  honeypot:
+    build: { context: ., dockerfile: src/Honeypot/Dockerfile }
+    image: cyber-ducks/honeypot:dev
+    labels: { range.zone: Z7, range.logs: otlp }
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: honeypot
+      OTEL_RESOURCE_ATTRIBUTES: range.zone=Z7,service.namespace=cyber-ducks
+    healthcheck: *http-health
+    mem_limit: 128m
+    cpus: 0.5
+    logging: *logging
+    restart: unless-stopped
+    networks: [edge, svc]
+
   # Local OIDC provider standing in for Google and Meta (ADR-0003). Two realms = two mock IdPs.
   # KC_HOSTNAME is the browser-facing URL (issuer); backchannel-dynamic lets store-web's container
   # reach it internally at idp:8080 (store-web rewrites the host).
@@ -338,7 +357,7 @@ services:
     logging: *logging
     restart: unless-stopped
     # Data tier (sealed) + ops so range-control can read flags/wargame.
-    networks: [data, ops]
+    networks: [data, ops, flags]
 
   # --- Z9 Range control -------------------------------------------------------------------
   # The defence-toggle panel (ADR-0008/0011). NOT an attack target: it sits on `ops` (plus `obs` to
@@ -510,6 +529,9 @@ networks:
     internal: true     # data tier: postgres + backup + exporter. No route off the host at all.
   obs:   {}            # observability: collector <-> lgtm / cadvisor / postgres-exporter
   bootstrap: {}        # egress-only, for the one-shot ollama-init model seeder (the `agent` net is sealed)
+  flags:
+    internal: true     # flag-sync only: store-web/agent-tools/ai-agent reach range_control (flags_reader,
+                       # SELECT on defence_flags) without gaining egress — the agent seal stays intact.
   # Range control stays off every store tier, so store services can't reach the defence-toggle
   # panel (ADR-0011). Postgres and the collector bridge in; range-control sits here alone.
   ops:   {}
