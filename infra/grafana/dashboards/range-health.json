@@ -31,13 +31,13 @@
     {
       "type": "stat",
       "title": "Containers",
-      "description": "UP if cAdvisor has seen the container in the last 60 seconds.",
+      "description": "UP if cAdvisor has seen the container in the last 60 seconds. Uses min() over the freshest container per service so a just-recreated container reads UP immediately, instead of the dead cgroup cAdvisor still briefly exports dragging it to DOWN.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 5, "w": 14, "x": 0, "y": 1 },
       "targets": [
         {
           "refId": "A",
-          "expr": "max by (container_label_com_docker_compose_service, container_label_range_zone) (time() - container_last_seen{container_label_com_docker_compose_service=~\"$service\"}) < bool 60",
+          "expr": "min by (container_label_com_docker_compose_service, container_label_range_zone) (time() - container_last_seen{container_label_com_docker_compose_service=~\"$service\"}) < bool 60",
           "legendFormat": "{{container_label_com_docker_compose_service}} ({{container_label_range_zone}})",
           "instant": true
         }
