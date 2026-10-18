@@ -40,6 +40,7 @@ into tiers, and a service can reach another only when they share a network. Memb
 | `data`  | ✓ | store-api, postgres, backup, postgres-exporter — no route off the host |
 | `obs`   | | otel-collector, lgtm, cadvisor, postgres-exporter, range-control |
 | `ops`   | | range-control, postgres, otel-collector — the isolated control plane (ADR-0011) |
+| `bootstrap` | | ollama-init only — egress-only, one-shot: seeds the model into the volume so the sealed ollama can serve it on a fresh deploy |
 
 Blocks this enforces (verified container-to-container): the edge proxy cannot reach the data tier;
 **ai-agent and ollama cannot reach store-api or Postgres directly** — the agent's only route to any

@@ -222,7 +222,31 @@ services:
     cpus: 4.0
     logging: *logging
     restart: unless-stopped
+    # Wait for the seeder to put the model in the volume: the `agent` net is sealed, so this
+    # container can't pull it itself. On later boots the seeder finds it cached and exits at once.
+    depends_on:
+      ollama-init: { condition: service_completed_successfully }
     networks: [agent]
+
+  # One-shot model seeder. The `agent` net is sealed (internal), so ollama can't reach the registry;
+  # this runs on `bootstrap` (which has egress), pulls the model into the shared `ollama` volume if
+  # it isn't there yet, then exits. Idempotent: a cached model means an instant no-op. This is how a
+  # fresh deployment gets its model — seal protects the running range, the seeder bootstraps it.
+  ollama-init:
+    image: ollama/ollama:latest
+    profiles: [local-llm]
+    labels: { range.zone: Z3 }
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'ollama serve & pid=$$!; until ollama list >/dev/null 2>&1; do sleep 1; done; ollama list | grep -q "${Llm__Model:-qwen3:4b-instruct}" || ollama pull ${Llm__Model:-qwen3:4b-instruct}; ollama list | grep -q "${Llm__Model:-qwen3:4b-instruct}"; rc=$$?; kill $$pid 2>/dev/null; exit $$rc'
+    volumes:
+      - ollama:/root/.ollama
+    mem_limit: 2g
+    cpus: 2.0
+    logging: *logging
+    restart: "no"
+    networks: [bootstrap]
 
   # --- Z7 External providers --------------------------------------------------------------
   # Fake payment provider. Charges always succeed, then it calls store-api's webhook (flow F14).
@@ -485,6 +509,7 @@ networks:
   data:
     internal: true     # data tier: postgres + backup + exporter. No route off the host at all.
   obs:   {}            # observability: collector <-> lgtm / cadvisor / postgres-exporter
+  bootstrap: {}        # egress-only, for the one-shot ollama-init model seeder (the `agent` net is sealed)
   # Range control stays off every store tier, so store services can't reach the defence-toggle
   # panel (ADR-0011). Postgres and the collector bridge in; range-control sits here alone.
   ops:   {}
