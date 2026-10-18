@@ -15,6 +15,21 @@ public sealed class Scenario
     /// <summary>Facilitator-only: never shown to players.</summary>
     public string FacilitatorNotes { get; set; } = "";
     public List<string> DebriefQuestions { get; set; } = [];
+
+    /// <summary>
+    /// The scenario's intended ground-truth map (facilitator-only). Applied to the ground_truth layer
+    /// when an exercise auto-runs (no facilitator to set it), and available as a one-click baseline on
+    /// any exercise. Only non-normal nodes need listing.
+    /// </summary>
+    public List<GroundTruthNode> GroundTruth { get; set; } = [];
+}
+
+/// <summary>One node's true state at the start of a scenario (facilitator ground truth).</summary>
+public sealed class GroundTruthNode
+{
+    public string Node { get; set; } = "";
+    public string State { get; set; } = "normal";
+    public string Note { get; set; } = "";
 }
 
 /// <summary>A timed message released to some roles during the exercise.</summary>

@@ -146,3 +146,8 @@ debrief_questions:
   - How did you size the financial loss and stop further shipments without blocking real customers?
   - Was this a personal-data breach? How did that judgement change who you had to notify?
   - What detective control (beyond the signature fix) would have caught this on day one?
+
+# Facilitator-only ground truth, applied automatically on an auto-run.
+ground_truth:
+  - { node: store-api, state: compromised, note: "accepts forged payment webhooks" }
+  - { node: postgres,  state: suspected,   note: "payment/invoice rows written on forged events" }

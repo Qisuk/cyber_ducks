@@ -82,9 +82,18 @@
                 <h2 class="h6 text-uppercase text-secondary mb-0">Infrastructure map</h2>
                 @if (IsFacilitator)
                 {
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="truth" @bind="_showTruth" />
-                        <label class="form-check-label small" for="truth">Show ground truth (facilitator)</label>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (_scenario is { GroundTruth.Count: > 0 })
+                        {
+                            <button class="btn btn-sm btn-outline-warning" @onclick="ApplyScenarioGroundTruth"
+                                    disabled="@(!IsRunning)" title="Set the ground-truth map from the scenario's declared baseline">
+                                Apply scenario ground truth
+                            </button>
+                        }
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="truth" @bind="_showTruth" />
+                            <label class="form-check-label small" for="truth">Show ground truth (facilitator)</label>
+                        </div>
                     </div>
                 }
             </div>
@@ -471,6 +480,14 @@
 
     private async Task Start() => await Games.StartAsync(Id);
     private async Task End() => await Games.EndAsync(Id);
+
+    private async Task ApplyScenarioGroundTruth()
+    {
+        if (_scenario is not null)
+        {
+            await Games.ApplyGroundTruthAsync(Id, _scenario, Actor);
+        }
+    }
     private async Task Release(Inject inject) => await Games.ReleaseInjectAsync(Id, inject.Id, Actor);
 
     private async Task OnSpeedChanged(ChangeEventArgs e)

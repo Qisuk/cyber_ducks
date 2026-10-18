@@ -140,3 +140,8 @@ debrief_questions:
   - What data was actually exposed versus what the forum post claimed, and how did you establish the difference?
   - Which single control would have prevented this, and which would have detected it sooner?
   - Did storing weak password hashes and card references change your response — and should we store them at all?
+
+# Facilitator-only ground truth, applied automatically on an auto-run.
+ground_truth:
+  - { node: store-api, state: compromised, note: "SQLi in the product search" }
+  - { node: postgres,  state: compromised, note: "bulk read of users / saved cards" }

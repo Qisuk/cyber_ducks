@@ -144,7 +144,12 @@ INSERT INTO defence_flags (vuln_id, title, kind, requires_restart) VALUES
   ('VULN-GRAFANA-01', 'Grafana requires login (no anonymous Admin)',           'infra', true),
   ('VULN-WAF-01',     'Edge WAF blocks naive attack signatures',               'infra', true),
   ('VULN-EGRESS-01',  'Agent tool fetches restricted to store hosts (no exfil/ingest)', 'code', false),
-  ('VULN-RESET-01',   'Strong, single-use password-reset tokens (no enumeration)',    'code', false);
+  ('VULN-RESET-01',   'Strong, single-use password-reset tokens (no enumeration)',    'code', false),
+  ('SIEM-01',         'SIEM: detection & alerting enabled (off = blind run)',         'infra', false);
+
+-- SIEM-01 ships ON (secure) so the range has detection by default; "All vulnerable" turns it off for
+-- a blind run. (It is not a vulnerability — it is the detection capability defenders toggle.)
+UPDATE defence_flags SET mode = 'secure', updated_by = 'seed' WHERE vuln_id = 'SIEM-01';
 
 INSERT INTO presets (id, name, description) VALUES
   (1, 'All vulnerable', 'Every defence off: the range as attackers first find it'),

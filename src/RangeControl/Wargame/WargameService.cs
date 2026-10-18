@@ -219,6 +219,18 @@ public sealed class WargameService(NpgsqlDataSource db, WargameEvents events)
         return list;
     }
 
+    /// <summary>Applies a scenario's declared ground-truth map to the ground_truth layer.</summary>
+    public async Task ApplyGroundTruthAsync(int exerciseId, Scenario scenario, string by, CancellationToken ct = default)
+    {
+        foreach (var n in scenario.GroundTruth)
+        {
+            if (!string.IsNullOrWhiteSpace(n.Node))
+            {
+                await SetNodeStateAsync(exerciseId, n.Node, "ground_truth", n.State, n.Note, by, ct);
+            }
+        }
+    }
+
     public Task SetNodeStateAsync(int exerciseId, string node, string layer, string state, string note, string by,
         CancellationToken ct = default) =>
         ExecuteAsync(exerciseId,

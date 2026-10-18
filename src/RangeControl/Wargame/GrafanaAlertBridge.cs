@@ -18,7 +18,7 @@ namespace RangeControl.Wargame;
 /// </summary>
 public sealed class GrafanaAlertBridge(
     IHttpClientFactory http, WargameService games, TopologySource topology,
-    IConfiguration config, ILogger<GrafanaAlertBridge> log) : BackgroundService
+    FlagAdminService flags, IConfiguration config, ILogger<GrafanaAlertBridge> log) : BackgroundService
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -69,6 +69,13 @@ public sealed class GrafanaAlertBridge(
         if (running.Count == 0)
         {
             return; // nothing to drive — don't even call Grafana
+        }
+
+        // SIEM-01: when detection is disabled, the automated detected layer stays dark — defenders
+        // run "blind" and must hunt in raw telemetry. Secure (the default) = detection on.
+        if (!await flags.IsSecureAsync("SIEM-01", defaultIfMissing: true, ct))
+        {
+            return;
         }
 
         var firing = await FetchFiringAsync(ct);

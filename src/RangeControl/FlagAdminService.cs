@@ -27,6 +27,15 @@ public sealed class FlagAdminService(NpgsqlDataSource controlDb, NpgsqlDataSourc
         return flags;
     }
 
+    /// <summary>True when a flag is in secure mode (or treated as secure when the row is missing-safe default).</summary>
+    public async Task<bool> IsSecureAsync(string vulnId, bool defaultIfMissing = false, CancellationToken ct = default)
+    {
+        await using var cmd = controlDb.CreateCommand("SELECT mode FROM defence_flags WHERE vuln_id = @id");
+        cmd.Parameters.AddWithValue("id", vulnId);
+        var mode = (string?)await cmd.ExecuteScalarAsync(ct);
+        return mode is null ? defaultIfMissing : mode == "secure";
+    }
+
     public async Task SetFlagAsync(string vulnId, string mode, string changedBy, CancellationToken ct = default)
     {
         await using var cmd = controlDb.CreateCommand(

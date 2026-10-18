@@ -124,3 +124,8 @@ debrief_questions:
   - What did the detected map show compared with the ground truth, and why the gap?
   - Which decision would you change, knowing what you know now?
   - Which control would have prevented this, and which would have detected it sooner?
+
+# Facilitator-only ground truth, applied automatically on an auto-run (seed for the detected-vs-truth gap).
+ground_truth:
+  - { node: store-api, state: compromised, note: "IDOR — other customers' orders read by id" }
+  - { node: postgres,  state: suspected,   note: "data read, not altered" }

@@ -147,3 +147,9 @@ debrief_questions:
   - Which single fix mattered most, and why is fixing only one of the two not enough?
   - How did the sealed agent network change the severity of a fully hijacked agent?
   - How would you decide whether to keep, restrict, or remove an AI feature after an incident like this?
+
+# Facilitator-only ground truth, applied automatically on an auto-run.
+ground_truth:
+  - { node: ai-agent,    state: compromised, note: "acts on a conversation-claimed identity" }
+  - { node: agent-tools, state: suspected,   note: "confused deputy / shared service account" }
+  - { node: store-api,   state: suspected,   note: "serving the service-account calls" }

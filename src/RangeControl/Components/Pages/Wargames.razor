@@ -68,9 +68,28 @@
                 <input id="title" class="form-control mb-2" @bind="_title" placeholder="e.g. Solo run 1" />
                 <label class="form-label small" for="facilitator">Facilitator name</label>
                 <input id="facilitator" class="form-control mb-3" @bind="_facilitator" />
+
+                @* One-click self-running exercise: a team can run a scenario with no facilitator
+                   releasing injects, outside an organised session (ADR-0008). *@
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="autorun" @bind="_autoRun" />
+                    <label class="form-check-label small" for="autorun">
+                        Auto-run — release injects automatically (no facilitator needed)
+                    </label>
+                </div>
+                @if (_autoRun)
+                {
+                    <label class="form-label small" for="speed">Pace</label>
+                    <select id="speed" class="form-select form-select-sm mb-3 w-auto" @bind="_speed">
+                        @foreach (var s in ExerciseConsole.Speeds)
+                        {
+                            <option value="@ExerciseConsole.FormatSpeed(s)">@ExerciseConsole.FormatSpeed(s)× (@PaceHint(s))</option>
+                        }
+                    </select>
+                }
                 <button class="btn btn-warning" @onclick="Create"
                         disabled="@(string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_facilitator))">
-                    Create exercise
+                    @(_autoRun ? "Create & auto-run" : "Create exercise")
                 </button>
             }
         </div>
@@ -83,6 +102,8 @@
     private string _scenarioId = "";
     private string _title = "";
     private string _facilitator = "Facilitator";
+    private bool _autoRun;
+    private string _speed = "10";
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,8 +115,31 @@
     private async Task Create()
     {
         var id = await Games.CreateExerciseAsync(_scenarioId, _title.Trim(), _facilitator.Trim());
+        if (_autoRun)
+        {
+            // One click to a self-running exercise: set the pace, turn autoplay on, and start it —
+            // the ExerciseClock then releases injects on schedule with no facilitator action.
+            var speed = double.TryParse(_speed, System.Globalization.CultureInfo.InvariantCulture, out var s) ? s : 10;
+            await Games.SetSpeedAsync(id, speed);
+            await Games.SetAutoplayAsync(id, true);
+            await Games.StartAsync(id);
+            // No facilitator to set the map, so seed the ground truth from the scenario — otherwise the
+            // after-action "detected vs truth" gap would be empty on a self-run.
+            if (Catalog.Find(_scenarioId) is { } scenario)
+            {
+                await Games.ApplyGroundTruthAsync(id, scenario, "scenario");
+            }
+        }
         Nav.NavigateTo($"wargame/{id}");
     }
+
+    // Rough wall-clock time to play a 90-minute scenario at the given speed.
+    private static string PaceHint(double speed) => speed switch
+    {
+        1 => "real time",
+        >= 60 => "demo",
+        _ => $"~{Math.Max(1, (int)(90 / speed))} min",
+    };
 
     internal static string StatusBadge(string status) => status switch
     {

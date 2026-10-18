@@ -33,7 +33,27 @@ check whether it complies. Secure: it declines and uses only the session-scoped 
 The `agent.chat` span would tag `defence.VULN-LLM-01`; the signature is a tool call whose target
 customer differs from the session's `sub`.
 
+## This flag is deliberately weak on its own (prompt-only)
+
+VULN-LLM-01's "secure" is **only a system-prompt instruction** — defence in depth at the model layer,
+and soft by nature (a determined prompt could still argue with it). It is **not** what actually keeps
+one customer out of another's data. That is deterministic and lives below the model:
+
+- The signed-in customer's **session JWT** is forwarded as an `Authorization` header at every hop
+  (store-web → ai-agent → agent-tools → store-api), set **in code**, never produced by the LLM
+  (`JwtForwardingHandler`, `OrderAgent` attaches it to the MCP transport, `CustomerTokenHandler`
+  forwards it).
+- The tools are **scoped by that token's owner**: `get_my_orders` takes no customer id at all, and
+  `get_order_status(orderId)` is still ownership-checked server-side (VULN-IDOR-01).
+
+So the load-bearing controls are **VULN-MCP-01** (forward the session token, not a shared service
+account) and **VULN-IDOR-01** (per-object authorization). **With those two secure, even VULN-LLM-01
+vulnerable cannot read another customer's data** — the agent may *try*, but the token-scoped tools and
+the API's object checks refuse it. A real cross-account read needs MCP-01 (service account) or IDOR
+(missing ownership check) to also be off.
+
 ## Fix / design
 
-Inject identity from the authenticated session only; never parse it from model input. (Related:
-VULN-MCP-01 — the tool server must also call APIs as that customer, not a shared account.)
+Treat the prompt binding as hardening, not the control. The control is: carry identity as a
+session-derived token the model can't touch, and have every tool/API enforce authorization against
+that token's owner — never against an id the model supplies. (Related: VULN-MCP-01, VULN-IDOR-01.)

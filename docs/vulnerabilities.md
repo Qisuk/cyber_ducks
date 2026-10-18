@@ -86,3 +86,4 @@ Not vulnerabilities — decoys that turn an attacker's own activity into a high-
 | ID | What it is | Detection |
 |----|------------|-----------|
 | [VULN-HONEYPOT-01](../attacks/VULN-HONEYPOT-01/) | Decoy "admin/export" server (`honeypot`), linked from the store only as bait; **any** connection fires a critical alert and raises the honeypot node on the wargame map ✅ | [detections/VULN-HONEYPOT-01.md](../detections/VULN-HONEYPOT-01.md) |
+| `SIEM-01` | Toggles the range's automated detection: secure (default) = firing alerts raise the wargame map via the bridge; vulnerable = detected layer stays dark so the team runs **blind** and hunts manually. Run a scenario both ways to test how much the tooling helps. ✅ | — |
