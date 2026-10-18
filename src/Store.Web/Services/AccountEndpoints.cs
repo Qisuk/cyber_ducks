@@ -195,8 +195,8 @@ public static class AccountEndpoints
                 return Results.LocalRedirect($"/assistant?error={Uri.EscapeDataString(error!)}");
             }
             history.Append(
-                new ChatTurn("user", message, []),
-                new ChatTurn("assistant", reply.Reply, reply.ToolsUsed));
+                new ChatTurn("user", message, [], []),
+                new ChatTurn("assistant", reply.Reply, reply.ToolsUsed, reply.PendingActions));
             return Results.LocalRedirect("/assistant");
         }).DisableAntiforgery().RequireAuthorization();
 

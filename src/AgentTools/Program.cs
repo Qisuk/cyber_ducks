@@ -1,9 +1,11 @@
 using AgentTools;
+using CyberDucks.Shared.Defences;
 using CyberDucks.Shared.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddRangeTelemetry();
+builder.Services.AddDefenceFlags(builder.Configuration); // VULN-LLM-02, VULN-LLM-06
 
 // Tools execute inside an HTTP request, so they can read the customer's Authorization header.
 builder.Services.AddHttpContextAccessor();

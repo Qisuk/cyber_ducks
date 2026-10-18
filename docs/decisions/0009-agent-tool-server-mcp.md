@@ -41,6 +41,21 @@ Over-broad tools (e.g. `search_orders` across all customers, `run_sql`), a servi
 instead of the customer's, full raw records returned, instruction-bearing tool descriptions,
 and a URL-fetching tool (SSRF).
 
+### Update (Phase 6d, 2026-10-18): toggles wired so far
+Kept deliberately narrow: each toggle switches an existing safeguard off; none adds a tool that
+widens what the agent can reach.
+
+| Flag | Vulnerable | Secure |
+|------|------------|--------|
+| VULN-LLM-02 | Tools return the whole order record (free-text notes, delivery address); plain system prompt | Per-tool projection to the fields needed; prompt marks tool results as data, not instructions |
+| VULN-LLM-05 | store-web renders agent replies as raw HTML | Replies HTML-encoded (rendered as text) |
+| VULN-LLM-06 | `cancel_order` cancels as soon as the model calls it | `cancel_order` returns `confirmation_required`; store-web shows a confirm button that runs the normal store action, outside the conversation |
+
+Tool-level checks use `IDefenceFlags.IsSecure(vulnId, where)`, which tags the trace like
+`AddDefence`. Still seeded but not yet wired: VULN-LLM-01 (identity from conversation) and
+VULN-MCP-01 (service-account token). Deferred to Phase 8 with network segmentation: `run_sql` and
+a URL-fetching tool, which would widen the agent's reach beyond the store.
+
 ## Consequences
 - One more service (~100 MB) and one more network hop.
 - New tools can be added later without widening the agent's own access.

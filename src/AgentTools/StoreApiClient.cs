@@ -19,4 +19,17 @@ public sealed class StoreApiClient(HttpClient http)
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<OrderDetail>(ct);
     }
+
+    /// <summary>Cancels an order as the customer. Returns store-api's verdict in plain words.</summary>
+    public async Task<string> CancelOrderAsync(int id, CancellationToken ct)
+    {
+        using var response = await http.PostAsync($"/api/orders/{id}/cancel", null, ct);
+        return response.StatusCode switch
+        {
+            System.Net.HttpStatusCode.OK => "cancelled",
+            System.Net.HttpStatusCode.NotFound => "not_found",
+            System.Net.HttpStatusCode.Conflict => "cannot_cancel",
+            _ => "error",
+        };
+    }
 }

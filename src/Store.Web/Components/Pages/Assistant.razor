@@ -1,6 +1,8 @@
 @page "/assistant"
 @attribute [Authorize]
 @inject ChatHistory History
+@inject CyberDucks.Shared.Defences.IDefenceFlags Flags
+@using CyberDucks.Shared.Defences
 
 <PageTitle>Ask the Duck · Rubber Duck Emporium</PageTitle>
 
@@ -24,11 +26,28 @@
     {
         <div class="chat-turn @(turn.Role == "user" ? "chat-user" : "chat-assistant")">
             <div class="chat-who">@(turn.Role == "user" ? "You" : "Duck assistant")</div>
-            @* Rendered as text (Blazor escapes it). Whether model output is trusted as HTML is a later toggle. *@
-            <div class="chat-text">@turn.Content</div>
+            @* VULN-LLM-05: secure renders model output as text (Blazor encodes it). Vulnerable trusts
+               it as HTML, so markup the model was steered into writing runs in the customer's page. *@
+            @if (turn.Role == "assistant" && !_encodeReplies)
+            {
+                <div class="chat-text">@((MarkupString)turn.Content)</div>
+            }
+            else
+            {
+                <div class="chat-text">@turn.Content</div>
+            }
             @if (turn.ToolsUsed.Count > 0)
             {
                 <div class="chat-tools">looked up: @string.Join(", ", turn.ToolsUsed)</div>
+            }
+            @* VULN-LLM-06 (secure): the agent can only ask. The customer confirms here, with a normal
+               store action outside the conversation. *@
+            @foreach (var action in turn.PendingActions.Where(a => a.Kind == "cancel_order"))
+            {
+                <form method="post" action="/orders/@action.OrderId/cancel" class="mt-2">
+                    <AntiforgeryToken />
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Confirm: cancel order #@action.OrderId</button>
+                </form>
             }
         </div>
     }
@@ -53,8 +72,13 @@
 
 @code {
     private IReadOnlyList<ChatTurn> _turns = [];
+    private bool _encodeReplies;
 
     [SupplyParameterFromQuery] public string? Error { get; set; }
 
-    protected override void OnInitialized() => _turns = History.Get();
+    protected override void OnInitialized()
+    {
+        _turns = History.Get();
+        _encodeReplies = Flags.IsSecure("VULN-LLM-05", "Assistant page");
+    }
 }

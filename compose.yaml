@@ -107,6 +107,7 @@ services:
     image: cyber-ducks/agent-tools:dev
     labels: { range.zone: Z3, range.logs: otlp }
     environment:
+      ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
       StoreApi__BaseUrl: http://store-api:8080/
       <<: *otel
       OTEL_SERVICE_NAME: agent-tools
@@ -128,6 +129,7 @@ services:
     image: cyber-ducks/ai-agent:dev
     labels: { range.zone: Z3, range.logs: otlp }
     environment:
+      ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
       AgentTools__McpUrl: http://agent-tools:8080/mcp
       # LLM provider (ADR-0010). Defaults to the local ollama container; override in .env for cloud.
       Llm__Provider: ${Llm__Provider:-Ollama}

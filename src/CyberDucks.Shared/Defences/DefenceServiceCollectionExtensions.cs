@@ -42,17 +42,33 @@ public static class DefenceServiceCollectionExtensions
         services.AddScoped<TService>(sp =>
         {
             var mode = sp.GetRequiredService<IDefenceFlags>().Get(vulnId);
-            // Searchable tag on the request span (e.g. in Tempo: defence.VULN-IDOR-01 = "vulnerable"),
-            // plus an event recording exactly which service was resolved.
-            Activity.Current?.SetTag($"defence.{vulnId}", mode.ToString().ToLowerInvariant());
-            Activity.Current?.AddEvent(new ActivityEvent("defence.resolved", tags: new ActivityTagsCollection
-            {
-                ["defence.vuln_id"] = vulnId,
-                ["defence.mode"] = mode.ToString().ToLowerInvariant(),
-                ["defence.service"] = typeof(TService).Name,
-            }));
+            RecordDecision(vulnId, mode, typeof(TService).Name);
             return sp.GetRequiredKeyedService<TService>(mode == DefenceMode.Secure ? SecureKey : VulnerableKey);
         });
         return services;
+    }
+
+    /// <summary>
+    /// Checks a flag inline (for code that can't use <see cref="AddDefence{TService,TVulnerable,TSecure}"/>,
+    /// such as static MCP tool methods) and records the decision on the trace the same way.
+    /// </summary>
+    public static bool IsSecure(this IDefenceFlags flags, string vulnId, string where)
+    {
+        var mode = flags.Get(vulnId);
+        RecordDecision(vulnId, mode, where);
+        return mode == DefenceMode.Secure;
+    }
+
+    // Searchable tag on the request span (e.g. in Tempo: defence.VULN-IDOR-01 = "vulnerable"),
+    // plus an event recording exactly which code path was chosen.
+    private static void RecordDecision(string vulnId, DefenceMode mode, string where)
+    {
+        Activity.Current?.SetTag($"defence.{vulnId}", mode.ToString().ToLowerInvariant());
+        Activity.Current?.AddEvent(new ActivityEvent("defence.resolved", tags: new ActivityTagsCollection
+        {
+            ["defence.vuln_id"] = vulnId,
+            ["defence.mode"] = mode.ToString().ToLowerInvariant(),
+            ["defence.service"] = where,
+        }));
     }
 }

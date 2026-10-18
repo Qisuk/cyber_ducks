@@ -1,10 +1,11 @@
 using System.Security.Claims;
+using CyberDucks.Shared.Contracts;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Store.Web.Services;
 
 /// <summary>One turn on the chat page. <see cref="ToolsUsed"/> is shown under assistant replies.</summary>
-public sealed record ChatTurn(string Role, string Content, IReadOnlyList<string> ToolsUsed);
+public sealed record ChatTurn(string Role, string Content, IReadOnlyList<string> ToolsUsed, IReadOnlyList<PendingAction> PendingActions);
 
 /// <summary>
 /// The conversation so far, held server-side in memory (lost on restart, which is fine for a

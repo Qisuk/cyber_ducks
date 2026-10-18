@@ -1,11 +1,13 @@
 using AiAgent;
 using CyberDucks.Shared.Contracts;
+using CyberDucks.Shared.Defences;
 using CyberDucks.Shared.Telemetry;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddRangeTelemetry();
+builder.Services.AddDefenceFlags(builder.Configuration); // VULN-LLM-02
 
 // The single IChatClient, backend chosen from config at startup (ADR-0010).
 builder.Services.AddSingleton(sp => ChatClientFactory.Create(

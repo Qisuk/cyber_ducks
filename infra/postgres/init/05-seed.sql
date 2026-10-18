@@ -132,6 +132,8 @@ INSERT INTO defence_flags (vuln_id, title, kind, requires_restart) VALUES
   ('VULN-GUARD-05',   'DB guard: no cancelling after shipping',                'data', false),
   ('VULN-LLM-01',     'Agent identity from session, not conversation',         'code', false),
   ('VULN-LLM-02',     'Tool results treated as data, minimised',               'code', false),
+  ('VULN-LLM-05',     'Agent replies encoded before rendering',                'code', false),
+  ('VULN-LLM-06',     'Agent asks the customer before state-changing actions', 'code', false),
   ('VULN-MCP-01',     'Tool server calls APIs with the customer''s token',     'code', false),
   ('VULN-WEBHOOK-01', 'Signed payment webhooks',                               'code', false),
   ('VULN-LOG-01',     'Audit logging of security events',                      'code', false);
