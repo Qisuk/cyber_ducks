@@ -53,13 +53,16 @@ a full README + confirm probe + detection. The rest are wired as toggles; write-
 
 Toggleable Postgres constraints/triggers (`set_guard()`), a second layer under the app checks.
 
-| ID | Secure behaviour |
-|----|------------------|
-| VULN-GUARD-01 | Order quantity must be positive |
-| VULN-GUARD-02 | Unit price must not be negative |
-| VULN-GUARD-03 | Invoice amount must not be negative |
-| VULN-GUARD-04 | Payment amount must be positive |
-| VULN-GUARD-05 | No cancelling after shipping |
+Documented as a family in [attacks/VULN-GUARD-01/](../attacks/VULN-GUARD-01/) (GUARD-01 has a live
+probe; the others are shown via their partner flaws). ✅
+
+| ID | Secure behaviour | Shown by |
+|----|------------------|----------|
+| VULN-GUARD-01 | Order quantity must be positive | [probe](../attacks/VULN-GUARD-01/) |
+| VULN-GUARD-02 | Unit price must not be negative | VULN-LOGIC-01 vulnerable |
+| VULN-GUARD-03 | Invoice amount must not be negative | negative-priced order |
+| VULN-GUARD-04 | Payment amount must be positive | payment path |
+| VULN-GUARD-05 | No cancelling after shipping | [VULN-LOGIC-02](../attacks/VULN-LOGIC-02/) |
 
 ## Infrastructure & observability
 
