@@ -55,7 +55,14 @@ scope. If players could tamper with the game master's view, the exercise would b
   facilitator notes and unreleased injects). Open consoles refresh live on every change.
 - **After-action report:** detected-vs-truth gap, decisions by NIST phase, one timeline of injects,
   decisions, map changes and defence-flag changes made during the exercise. Times are UTC.
-- **Deferred:** the detected layer from Grafana alerts (needs Phase 8 detection rules); response
+- **Detected layer from alerts (Phase 8):** `GrafanaAlertBridge`, a hosted service in range-control,
+  polls Grafana's firing detection alerts (flow F19) and raises the mapped node to `suspected`
+  (`compromised` for a critical rule) on the detected layer for every running exercise. The alert →
+  node mapping is a `range_node` label on each rule in `range-alerts.yaml`, so it stays next to the
+  detection. Raise-only from `normal`: once a human (or an earlier tick) has moved a node, the team
+  owns it — the bridge never downgrades or clears it, keeping the facilitator in control of the map.
+  If Grafana is unreachable or anonymous access is off with no token, the layer simply stays manual.
+- **Deferred:** response
   action buttons (isolating containers needs the Docker socket, which is close to host root —
   needs its own design); per-participant logins; attack scripts reporting ground truth (Phase 7).
 

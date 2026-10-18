@@ -2,6 +2,9 @@
 # detections/*.md signatures into firing alerts, visible in Grafana → Alerting.
 # Thresholds are tuned for a normally-quiet range; adjust per your traffic.
 # Each rule carries a `range_detection` label (the VULN-ID) and a runbook annotation.
+# The `range_node` label names the topology node the alert lights up on the wargame's detected
+# layer: range-control polls these alerts (flow F19) and raises that node to "suspected"
+# ("compromised" for a critical rule) for every running exercise. See GrafanaAlertBridge.
 apiVersion: 1
 
 groups:
@@ -17,7 +20,7 @@ groups:
         for: 2m
         noDataState: OK
         execErrState: Error
-        labels: { severity: warning, range_detection: VULN-AUTH-01 }
+        labels: { severity: warning, range_detection: VULN-AUTH-01, range_node: store-api }
         annotations:
           summary: High rate of failed logins on /api/auth/login.
           runbook: attacks/VULN-AUTH-01 ; detections/VULN-AUTH-01.md
@@ -51,7 +54,7 @@ groups:
         for: 2m
         noDataState: OK
         execErrState: Error
-        labels: { severity: warning, range_detection: VULN-INFO-01 }
+        labels: { severity: warning, range_detection: VULN-INFO-01, range_node: store-api }
         annotations:
           summary: Elevated 5xx rate on store-api — often injection/error probing.
           runbook: detections/VULN-INFO-01.md ; detections/VULN-SQLI-01.md
@@ -85,7 +88,7 @@ groups:
         for: 0m
         noDataState: OK
         execErrState: Error
-        labels: { severity: warning, range_detection: VULN-SQLI-01 }
+        labels: { severity: warning, range_detection: VULN-SQLI-01, range_node: store-api }
         annotations:
           summary: Postgres/Npgsql errors from store-api — payload development leaves these.
           runbook: attacks/VULN-SQLI-01 ; detections/VULN-SQLI-01.md
@@ -119,7 +122,7 @@ groups:
         for: 0m
         noDataState: OK
         execErrState: Error
-        labels: { severity: warning, range_detection: VULN-WEBHOOK-01 }
+        labels: { severity: warning, range_detection: VULN-WEBHOOK-01, range_node: store-api }
         annotations:
           summary: store-api rejected a payment webhook with an invalid signature.
           runbook: attacks/VULN-WEBHOOK-01 ; detections/VULN-WEBHOOK-01.md
@@ -153,7 +156,7 @@ groups:
         for: 0m
         noDataState: OK
         execErrState: Error
-        labels: { severity: info, range_detection: VULN-GUARD }
+        labels: { severity: info, range_detection: VULN-GUARD, range_node: postgres }
         annotations:
           summary: A DB guard blocked an invalid write — something is trying to store bad data.
           runbook: attacks/VULN-GUARD-01 ; detections/VULN-GUARD.md
@@ -187,7 +190,7 @@ groups:
         for: 0m
         noDataState: OK
         execErrState: Error
-        labels: { severity: warning, range_detection: VULN-OAUTH-01 }
+        labels: { severity: warning, range_detection: VULN-OAUTH-01, range_node: store-web }
         annotations:
           summary: store-web rejected OIDC callbacks with bad/missing state — login CSRF or replay.
           runbook: attacks/VULN-OAUTH-01 ; detections/VULN-OAUTH-01.md

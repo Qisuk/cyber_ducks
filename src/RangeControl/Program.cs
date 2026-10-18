@@ -30,6 +30,21 @@ builder.Services.AddSingleton(sp => new WargameService(controlDb, sp.GetRequired
 builder.Services.AddSingleton(new ScenarioCatalog(builder.Configuration["Wargame:ScenarioPath"] ?? "/range/wargame/scenarios"));
 builder.Services.AddSingleton(new TopologySource(builder.Configuration["Wargame:TopologyPath"] ?? "/range/topology.yaml"));
 
+// Flow F19: poll Grafana's firing detection alerts and raise the matching node on the wargame's
+// detected layer, so the range's own telemetry drives the infra map (not just facilitator clicks).
+builder.Services.AddHttpClient("grafana", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Grafana:BaseUrl"] ?? "http://lgtm:3000");
+    client.Timeout = TimeSpan.FromSeconds(10);
+    // Only needed when Grafana anonymous access is off (VULN-GRAFANA-01 secure); otherwise unused.
+    var token = builder.Configuration["Grafana:ApiToken"];
+    if (!string.IsNullOrWhiteSpace(token))
+    {
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+});
+builder.Services.AddHostedService<GrafanaAlertBridge>();
+
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtection:KeyPath"] ?? "/keys"))
     .SetApplicationName("cyber-ducks-rangecontrol");

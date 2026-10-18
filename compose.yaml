@@ -314,8 +314,9 @@ services:
     networks: [data, ops]
 
   # --- Z9 Range control -------------------------------------------------------------------
-  # The defence-toggle panel (ADR-0008/0011). NOT an attack target: it sits on the isolated `ops`
-  # network, so store services (on `range`) cannot reach it, while it can still reach postgres.
+  # The defence-toggle panel (ADR-0008/0011). NOT an attack target: it sits on `ops` (plus `obs` to
+  # query Grafana, flow F19), so store services on the application tiers cannot reach it, while it
+  # can still reach postgres and the observability stack.
   range-control:
     build: { context: ., dockerfile: src/RangeControl/Dockerfile }
     image: cyber-ducks/range-control:dev
@@ -325,6 +326,9 @@ services:
       ConnectionStrings__Duckstore: Host=postgres;Database=duckstore;Username=range_control_owner;Password=${RANGE_CONTROL_PASSWORD}
       Facilitator__Password: ${FACILITATOR_PASSWORD}
       DataProtection__KeyPath: /keys
+      # Flow F19: poll Grafana's firing detection alerts to drive the wargame's detected layer.
+      # Grafana__ApiToken is only needed when anonymous access is off (VULN-GRAFANA-01 secure).
+      Grafana__BaseUrl: http://lgtm:3000
       <<: *otel
       OTEL_SERVICE_NAME: range-control
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z9,service.namespace=cyber-ducks
@@ -342,7 +346,8 @@ services:
     cpus: 0.5
     logging: *logging
     restart: unless-stopped
-    networks: [ops]
+    # ops: reach postgres/collector for flags + wargame. obs: query Grafana alert state (flow F19).
+    networks: [ops, obs]
 
   # --- Z6 Backups -------------------------------------------------------------------------
   # Scheduled pg_dump of duckstore into the pgbackups volume (flow F17).
