@@ -29,6 +29,7 @@ builder.Services.AddSingleton<WargameEvents>();
 builder.Services.AddSingleton(sp => new WargameService(controlDb, sp.GetRequiredService<WargameEvents>()));
 builder.Services.AddSingleton(new ScenarioCatalog(builder.Configuration["Wargame:ScenarioPath"] ?? "/range/wargame/scenarios"));
 builder.Services.AddSingleton(new TopologySource(builder.Configuration["Wargame:TopologyPath"] ?? "/range/topology.yaml"));
+builder.Services.AddSingleton(new DefenceDetailSource(builder.Configuration["DefenceDetails:Path"] ?? "/range/defence-details.yaml"));
 
 // Flow F19: poll Grafana's firing detection alerts and raise the matching node on the wargame's
 // detected layer, so the range's own telemetry drives the infra map (not just facilitator clicks).

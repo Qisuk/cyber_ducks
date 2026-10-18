@@ -385,6 +385,8 @@ services:
       # Wargame (ADR-0008): the map is drawn from the topology; scenarios are editable files.
       - ./infra/topology.yaml:/range/topology.yaml:ro
       - ./wargame:/range/wargame:ro
+      # Per-defence teaching detail (attack sim + mitigation), editable without a rebuild.
+      - ./infra/defence-details.yaml:/range/defence-details.yaml:ro
     healthcheck: *http-health
     depends_on:
       postgres: { condition: service_healthy }

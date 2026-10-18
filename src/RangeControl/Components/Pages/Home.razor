@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @inject FlagAdminService Admin
+@inject DefenceDetailSource Details
 
 <PageTitle>Range Control</PageTitle>
 
@@ -31,22 +32,41 @@ else
                     @foreach (var flag in group)
                     {
                         var secure = flag.Mode == "secure";
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <div class="fw-semibold">@flag.Title</div>
-                                <code class="small text-secondary">@flag.VulnId</code>
-                                @if (flag.RequiresRestart)
-                                {
-                                    <span class="badge text-bg-warning ms-1">restart</span>
-                                }
+                        var detail = _details.GetValueOrDefault(flag.VulnId);
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold">@flag.Title</div>
+                                    <code class="small text-secondary">@flag.VulnId</code>
+                                    @if (flag.RequiresRestart)
+                                    {
+                                        <span class="badge text-bg-warning ms-1">restart</span>
+                                    }
+                                </div>
+                                <div class="form-check form-switch fs-5">
+                                    <input class="form-check-input" type="checkbox" role="switch"
+                                           checked="@secure" @onchange="() => ToggleFlag(flag)" />
+                                    <span class="badge @(secure ? "text-bg-success" : "text-bg-danger") align-middle">
+                                        @(secure ? "secure" : "vulnerable")
+                                    </span>
+                                </div>
                             </div>
-                            <div class="form-check form-switch fs-5">
-                                <input class="form-check-input" type="checkbox" role="switch"
-                                       checked="@secure" @onchange="() => ToggleFlag(flag)" />
-                                <span class="badge @(secure ? "text-bg-success" : "text-bg-danger") align-middle">
-                                    @(secure ? "secure" : "vulnerable")
-                                </span>
-                            </div>
+                            @if (detail is not null)
+                            {
+                                <details class="mt-2">
+                                    <summary class="small text-secondary">How to simulate & mitigate</summary>
+                                    <div class="small mt-2">
+                                        <div class="mb-2">
+                                            <span class="badge text-bg-danger me-1">Attack</span>
+                                            @detail.Simulate
+                                        </div>
+                                        <div>
+                                            <span class="badge text-bg-success me-1">Mitigation</span>
+                                            @detail.Mitigation
+                                        </div>
+                                    </div>
+                                </details>
+                            }
                         </div>
                     }
                 </div>
@@ -99,6 +119,7 @@ else
     private IReadOnlyList<DefenceFlag>? _flags;
     private IReadOnlyList<GuardState> _guards = [];
     private IReadOnlyList<FlagChange> _changes = [];
+    private IReadOnlyDictionary<string, DefenceDetail> _details = new Dictionary<string, DefenceDetail>();
 
     protected override Task OnInitializedAsync() => RefreshAsync();
 
@@ -107,6 +128,7 @@ else
         _flags = await Admin.GetFlagsAsync();
         _guards = await Admin.GetGuardsAsync();
         _changes = await Admin.GetRecentChangesAsync();
+        _details = Details.Load();
     }
 
     private async Task ToggleFlag(DefenceFlag flag)
