@@ -119,7 +119,7 @@
                             <select class="form-select" @bind="_detectedState">
                                 @foreach (var s in WargameService.States) { <option>@s</option> }
                             </select>
-                            <input class="form-control" placeholder="evidence / note" @bind="_detectedNote" />
+                            <input class="form-control" placeholder="evidence / note" @bind="_detectedNote" @bind:event="oninput" />
                             <button class="btn btn-outline-light" @onclick='() => SetState("detected", _detectedState, _detectedNote)'
                                     disabled="@(!IsRunning)">Set</button>
                         </div>
@@ -132,7 +132,7 @@
                                 <select class="form-select" @bind="_truthState">
                                     @foreach (var s in WargameService.States) { <option>@s</option> }
                                 </select>
-                                <input class="form-control" placeholder="note" @bind="_truthNote" />
+                                <input class="form-control" placeholder="note" @bind="_truthNote" @bind:event="oninput" />
                                 <button class="btn btn-outline-warning" @onclick='() => SetState("ground_truth", _truthState, _truthNote)'>Set</button>
                             </div>
                         </div>
@@ -151,11 +151,11 @@
                     </select>
                 </div>
                 <div class="col-md-8">
-                    <input class="form-control form-control-sm" placeholder="Decision (what we will do)" @bind="_decisionText" />
+                    <input class="form-control form-control-sm" placeholder="Decision (what we will do)" @bind="_decisionText" @bind:event="oninput" />
                 </div>
                 <div class="col-12">
                     <textarea class="form-control form-control-sm" rows="2" placeholder="Rationale (why, and on what evidence)"
-                              @bind="_rationale"></textarea>
+                              @bind="_rationale" @bind:event="oninput"></textarea>
                 </div>
                 <div class="col-12">
                     <button class="btn btn-sm btn-warning" @onclick="LogDecision"
@@ -298,7 +298,7 @@
                 <div class="small text-secondary mb-2">@(_editingMsgId is null ? "Add a message / ad-hoc inject" : $"Editing message #{_editingMsgId}")</div>
                 <div class="row g-2">
                     <div class="col-5">
-                        <input class="form-control form-control-sm" placeholder="From (sender)" @bind="_msgSender" />
+                        <input class="form-control form-control-sm" placeholder="From (sender)" @bind="_msgSender" @bind:event="oninput" />
                     </div>
                     <div class="col-7">
                         <select class="form-select form-select-sm" @bind="_msgPhase" aria-label="Phase">
@@ -306,10 +306,10 @@
                         </select>
                     </div>
                     <div class="col-12">
-                        <input class="form-control form-control-sm" placeholder="Title" @bind="_msgTitle" />
+                        <input class="form-control form-control-sm" placeholder="Title" @bind="_msgTitle" @bind:event="oninput" />
                     </div>
                     <div class="col-12">
-                        <textarea class="form-control form-control-sm" rows="2" placeholder="Message body" @bind="_msgBody"></textarea>
+                        <textarea class="form-control form-control-sm" rows="2" placeholder="Message body" @bind="_msgBody" @bind:event="oninput"></textarea>
                     </div>
                     <div class="col-12 d-flex flex-wrap gap-2">
                         @foreach (var r in Audiences)
@@ -350,7 +350,7 @@
             @if (IsFacilitator)
             {
                 <div class="input-group input-group-sm">
-                    <input class="form-control" placeholder="name" @bind="_newName" />
+                    <input class="form-control" placeholder="name" @bind="_newName" @bind:event="oninput" />
                     <select class="form-select" @bind="_newRole" aria-label="Role">
                         @foreach (var r in WargameService.Roles.Where(r => r != "facilitator"))
                         {
