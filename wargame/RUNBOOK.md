@@ -27,7 +27,11 @@ One person can facilitate and red-team at once for a small run.
 
 | Surface | Address | Used by |
 |---|---|---|
-| The shop (attack target) | `192.168.10.10:8080` (LAN) / `127.0.0.1:8080` (host) | Red team / Kali |
+| The shop (attack target) | `192.168.56.1:8080` (LAN) / `127.0.0.1:8080` (host) | Red team / Kali |
+
+> The LAN address is set by `STORE_BIND_IP` in `.env` (currently `192.168.56.1`, the
+> VirtualBox host-only adapter) and `STORE_PORT` (`8080`). If you move the range to a
+> different host-only network, update `STORE_BIND_IP` and point Kali at the new address.
 | Grafana (logs, traces, metrics, alerts) | `127.0.0.1:3000` | Blue team (host) |
 | Range Control / Ops Console (map, flags, wargame) | `127.0.0.1:8090` | Facilitator + blue team (host) |
 | Mailpit (intercepted mail) | `127.0.0.1:8025` | Blue team (host) |
@@ -114,7 +118,7 @@ object-level authorisation is missing.
 - Decide SIEM-01 state. For the first pass leave it **secure** (default) so the map lights
   up — you want players to see detection work. (Run it again with SIEM-01 off later to teach
   the blind-defender point.)
-- Kali can reach `192.168.10.10:8080`.
+- Kali can reach `192.168.56.1:8080` (the `STORE_BIND_IP` host-only address).
 
 ### Facilitator setup (Ops Console)
 1. Wargames → `customer-data-leak` → **Create** (tabletop, no auto-run for a facilitated run).
@@ -128,7 +132,7 @@ object-level authorisation is missing.
 | T+ | Facilitator action | Red team (Kali) | What the blue team should see |
 |---|---|---|---|
 | 0 | Release **I1** (support ticket: "that isn't my order") | — | Nothing in telemetry yet — just a report. Triage: is it real? |
-| ~2 | — | Log in as a normal customer, grab the session cookie/JWT, then walk order ids:  `for i in $(seq 1000 1300); do curl -s -b cookies.txt http://192.168.10.10:8080/api/orders/$i -o /dev/null -w "%{http_code} $i\n"; done` | In **Grafana**: a burst of `GET /api/orders/{id}` from **one client**, hundreds of distinct ids in minutes, mostly `200`. Normal customers fetch a handful of their *own*. Traces tagged `defence.VULN-IDOR-01 = vulnerable`. |
+| ~2 | — | Log in as a normal customer, grab the session cookie/JWT, then walk order ids:  `for i in $(seq 1000 1300); do curl -s -b cookies.txt http://192.168.56.1:8080/api/orders/$i -o /dev/null -w "%{http_code} $i\n"; done` | In **Grafana**: a burst of `GET /api/orders/{id}` from **one client**, hundreds of distinct ids in minutes, mostly `200`. Normal customers fetch a handful of their *own*. Traces tagged `defence.VULN-IDOR-01 = vulnerable`. |
 | ~10 | Release **I2** (on-call: odd traffic on orders API) | (let it finish) | Confirm scope from traces: which ids, which client, which window. This *is* the evidence; preserve it before changing anything. |
 | ~20 | Release **I3** (social media post) | — | Pressure. Comms drafts a holding line — only what's confirmed. |
 | ~30 | Release **I4** (DPO: is this reportable?) | — | Awareness time = when you first could reasonably know (the ticket? the traffic?). Count affected = distinct ids actually returned `200` to the attacker. |
