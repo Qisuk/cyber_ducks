@@ -53,6 +53,10 @@ services:
       <<: *otel
       OTEL_SERVICE_NAME: store-api
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
+    ports:
+      # Published (localhost only) so the API attack surface can be tested directly, e.g. with an
+      # intercepting proxy or the attacks/ probes. A real deployment would keep it behind the proxy.
+      - "127.0.0.1:${STORE_API_PORT:-8081}:8080"
     healthcheck: *http-health
     depends_on:
       postgres: { condition: service_healthy }

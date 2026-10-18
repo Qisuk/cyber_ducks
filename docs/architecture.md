@@ -82,11 +82,11 @@ every app service sends OTLP.
 | 2 | Telemetry stack + container health | ✓ | Done: "Range health" dashboard |
 | 3 | Store API + UI with local login | ✓ | Done: 9 toggles (PWD, AUTH, IDOR, SQLI, INFO, MASS, XSS, CSRF, SESSION); DBROLE deferred to Phase 4 |
 | 4 | Order lifecycle + range-control panel | ✓ (minimal) | Done: panel, place/cancel/pay/ship, DBROLE (restart) & AUTHZ toggles |
-| 5 | OAuth via Keycloak ("Google"/"Meta") | | **In progress**: social login + VULN-OAUTH-03 done; OAUTH-01/02 to wire |
-| 6 | AI agent + agent-tools, swappable LLM (ADR-0010) | ✓ | |
-| 7 | Arm the range: vulnerability catalogue + attack scripts | | |
+| 5 | OAuth via Keycloak ("Google"/"Meta") | ✓ | Done: social login, VULN-OAUTH-01/02/03 |
+| 6 | AI agent + agent-tools, swappable LLM (ADR-0010) | ✓ | Done: chat UI; VULN-LLM-02/05/06 wired |
+| 7 | Arm the range: vulnerability catalogue + attack scripts | | **In progress**: catalogue ([docs/vulnerabilities.md](vulnerabilities.md)); vertical slice IDOR/SQLI/AUTHZ/LLM-06 with confirm probes + detections |
 | 8 | Defence: detections, hardening, WAF, segmentation | | |
-| 9 | Wargame: Ops Console, scenarios, injects, role cards, after-action report | | |
+| 9 | Wargame: Ops Console, scenarios, injects, role cards, after-action report | ✓ (basics) | Ops Console in range-control: map, injects, decision log, after-action report ([ADR-0008](decisions/0008-wargame-and-ops-console.md)) |
 
 **Alpha:** a store you can log into and order from, with telemetry and the AI agent. The alpha is
 naturally unhardened; vulnerability toggles (ADR-0006) arrive in Phase 7.

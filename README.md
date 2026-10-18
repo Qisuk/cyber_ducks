@@ -38,6 +38,8 @@ Needs Docker Desktop. Copy `.env.example` to `.env` first (all values are fake r
 |------|---------|
 | Start (builds the .NET images on first run) | `docker compose up -d --build` |
 | The store | http://127.0.0.1:8080 |
+| The store API (for direct API testing / proxying) | http://127.0.0.1:8081 |
+| Vulnerability catalogue + confirm probes | [`docs/vulnerabilities.md`](docs/vulnerabilities.md), [`attacks/`](attacks) |
 | Run the tests (needs Docker) | `dotnet test --solution CyberDucks.slnx` |
 | Stop (keep data) | `docker compose down` |
 | Reset everything (re-seed on next start) | `docker compose down -v` |
