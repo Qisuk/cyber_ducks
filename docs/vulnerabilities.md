@@ -10,8 +10,9 @@ and secure code path; most apply within seconds, a few need a restart (marked be
 
 **Catalogued so far:** the application/API set (IDOR, SQLI, AUTHZ, MASS, LOGIC-01/02, AUTH, INFO),
 the browser tier (XSS, CSRF, SESSION), WEBHOOK, the DB-guard family, and LLM-06 — each with a README
-+ confirm probe (or deterministic test) + detection. Also catalogued: OAUTH-01/02/03, PWD, PCI,
-DBROLE. Pending: LLM-01/02/05, MCP-01, LOG-01.
++ confirm probe (or deterministic test) + detection. **All 29 IDs are now catalogued.** Three are
+defined on the panel but not yet wired in code — VULN-LLM-01, VULN-MCP-01 (secure path built) and
+VULN-LOG-01 — and their write-ups say so and describe the planned behaviour.
 
 ## Application & API
 
@@ -44,11 +45,11 @@ DBROLE. Pending: LLM-01/02/05, MCP-01, LOG-01.
 
 | ID | Secure behaviour | Restart | OWASP | Catalogued |
 |----|------------------|:---:|------|:---:|
-| VULN-LLM-01 | Agent identity from session, not conversation | | LLM01 / LLM08 | wired: no |
-| VULN-LLM-02 | Tool results treated as data, minimised | | LLM01 / LLM02 | wired ✓ |
-| VULN-LLM-05 | Agent replies encoded before rendering | | LLM05 | wired ✓ |
+| [VULN-LLM-01](../attacks/VULN-LLM-01/) | Agent identity from session, not conversation | | LLM01 / LLM08 | ✅ (planned wiring) |
+| [VULN-LLM-02](../attacks/VULN-LLM-02/) | Tool results treated as data, minimised | | LLM01 / LLM02 | ✅ |
+| [VULN-LLM-05](../attacks/VULN-LLM-05/) | Agent replies encoded before rendering | | LLM05 | ✅ |
 | [VULN-LLM-06](../attacks/VULN-LLM-06/) | Agent asks the customer before state-changing actions | | LLM06 Excessive agency | ✅ |
-| VULN-MCP-01 | Tool server calls APIs with the customer's token | | LLM06 / LLM08 | wired: no |
+| [VULN-MCP-01](../attacks/VULN-MCP-01/) | Tool server calls APIs with the customer's token | | LLM06 / LLM08 | ✅ (secure built) |
 
 ## Database guards (defence in depth)
 
@@ -70,4 +71,4 @@ probe; the others are shown via their partner flaws). ✅
 | ID | Secure behaviour | OWASP |
 |----|------------------|------|
 | [VULN-WEBHOOK-01](../attacks/VULN-WEBHOOK-01/) | Signed payment webhooks ✅ | A08 |
-| VULN-LOG-01 | Audit logging of security events | A09 |
+| [VULN-LOG-01](../attacks/VULN-LOG-01/) | Audit logging of security events ✅ (planned wiring) | A09 |
