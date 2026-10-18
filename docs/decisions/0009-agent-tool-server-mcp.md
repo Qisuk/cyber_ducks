@@ -52,9 +52,14 @@ widens what the agent can reach.
 | VULN-LLM-06 | `cancel_order` cancels as soon as the model calls it | `cancel_order` returns `confirmation_required`; store-web shows a confirm button that runs the normal store action, outside the conversation |
 
 Tool-level checks use `IDefenceFlags.IsSecure(vulnId, where)`, which tags the trace like
-`AddDefence`. Still seeded but not yet wired: VULN-LLM-01 (identity from conversation) and
-VULN-MCP-01 (service-account token). Deferred to Phase 8 with network segmentation: `run_sql` and
-a URL-fetching tool, which would widen the agent's reach beyond the store.
+`AddDefence`. VULN-LLM-01 (identity from conversation) and VULN-MCP-01 (service-account token) were
+wired in Phase 8: VULN-LLM-01 binds the agent's identity to the session in the system prompt, and
+VULN-MCP-01 forwards the customer's JWT from agent-tools to store-api instead of a shared service
+account (see [detections/VULN-LLM-01](../../detections/VULN-LLM-01.md),
+[detections/VULN-MCP-01](../../detections/VULN-MCP-01.md)). Still deliberately **not** built to keep
+the agent's reach inside the store: a `run_sql` tool and a general URL-fetching tool. External reach
+is instead modelled by a separate, toggleable egress control (VULN-EGRESS-01) and a honeypot decoy,
+so exfiltration/ingest can be demonstrated without giving the agent a real arbitrary-fetch tool.
 
 ## Consequences
 - One more service (~100 MB) and one more network hop.
