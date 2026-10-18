@@ -194,7 +194,8 @@ services:
   # Local LLM inference (ADR-0004/0010), CPU-only. In the `local-llm` profile (on by default via
   # COMPOSE_PROFILES in .env); clear it for cloud-LLM runs to save ~3-4 GB of RAM. Pulls the model
   # on first start into a named volume, then serves. ai-agent connects lazily, so a slow first pull
-  # just delays the first chat.
+  # just delays the first chat. The `agent` net is sealed (internal: true) — seed the model before
+  # sealing (it's cached in the `ollama` volume); offline, the entrypoint skips the pull and serves.
   ollama:
     image: ollama/ollama:latest
     profiles: [local-llm]
@@ -206,7 +207,9 @@ services:
     entrypoint:
       - /bin/sh
       - -c
-      - 'ollama serve & pid=$$!; until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull ${Llm__Model:-qwen3:4b-instruct}; wait $$pid'
+      # Pull only if the model isn't already in the volume: the `agent` net is sealed (internal),
+      # so a registry pull would just fail — a cached model serves fine offline.
+      - 'ollama serve & pid=$$!; until ollama list >/dev/null 2>&1; do sleep 1; done; ollama list | grep -q "${Llm__Model:-qwen3:4b-instruct}" || ollama pull ${Llm__Model:-qwen3:4b-instruct}; wait $$pid'
     volumes:
       - ollama:/root/.ollama
     healthcheck:
@@ -475,7 +478,10 @@ networks:
   # another only when they share a network; otherwise the connection is refused at L3.
   edge:  {}            # DMZ: proxy <-> store-web. Only the proxy publishes a host port.
   svc:   {}            # service tier: store-web, store-api, agent-tools, idp, payment-stub
-  agent: {}            # agent sandbox (TB5): ai-agent + ollama; only agent-tools bridges out (ADR-0009)
+  agent:
+    internal: true     # agent sandbox (TB5): ai-agent + ollama. Sealed — no route off the host, so
+                       # a prompt-injected agent cannot exfiltrate or call home. agent-tools and
+                       # store-web bridge to the service tier; the collector bridges to obs (ADR-0009).
   data:
     internal: true     # data tier: postgres + backup + exporter. No route off the host at all.
   obs:   {}            # observability: collector <-> lgtm / cadvisor / postgres-exporter

@@ -36,16 +36,20 @@ into tiers, and a service can reach another only when they share a network. Memb
 |---------|:---:|---------|
 | `edge`  | | proxy, store-web — the DMZ; only the proxy publishes a host port |
 | `svc`   | | store-web, store-api, agent-tools, idp, payment-stub, otel-collector |
-| `agent` | | store-web, ai-agent, ollama, agent-tools, otel-collector — the agent sandbox (TB5) |
+| `agent` | ✓ | store-web, ai-agent, ollama, agent-tools, otel-collector — the agent sandbox (TB5), sealed |
 | `data`  | ✓ | store-api, postgres, backup, postgres-exporter — no route off the host |
-| `obs`   | | otel-collector, lgtm, cadvisor, postgres-exporter |
+| `obs`   | | otel-collector, lgtm, cadvisor, postgres-exporter, range-control |
 | `ops`   | | range-control, postgres, otel-collector — the isolated control plane (ADR-0011) |
 
 Blocks this enforces (verified container-to-container): the edge proxy cannot reach the data tier;
 **ai-agent and ollama cannot reach store-api or Postgres directly** — the agent's only route to any
 API is agent-tools (ADR-0009, TB5/TB11); idp and payment-stub cannot reach Postgres; and Grafana
-(`lgtm`) cannot reach the app or data tiers. store-web is the trusted front controller spanning
-`edge`/`svc`/`agent`; otel-collector is the telemetry hub spanning every tier that emits.
+(`lgtm`) cannot reach the app or data tiers. The `agent` tier is **sealed** (`internal`): ai-agent
+and ollama have no route off the host, so a prompt-injected agent cannot exfiltrate data or call home
+— seed the model into the `ollama` volume before sealing (the entrypoint skips the pull when offline).
+store-web is the trusted front controller spanning `edge`/`svc`/`agent`; agent-tools bridges the
+sandbox to `svc`; otel-collector is the telemetry hub spanning every tier that emits. range-control
+reaches Grafana over `obs` to drive the wargame's detected layer (flow F19).
 
 ## Data flow (draft: refine during threat modelling)
 
