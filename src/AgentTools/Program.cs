@@ -21,6 +21,11 @@ builder.Services.AddTransient<CustomerTokenHandler>();
 builder.Services.AddHttpClient<StoreApiClient>(client => client.BaseAddress = new Uri(storeApiBaseUrl))
     .AddHttpMessageHandler<CustomerTokenHandler>();
 
+// VULN-EGRESS-01: the fetch_reference tool's outbound client. The guard allows only store hosts when
+// secure, and any host when vulnerable (exfil/ingest demo). Defence in depth with the sealed agent net.
+builder.Services.AddTransient<EgressGuardHandler>();
+builder.Services.AddHttpClient("egress").AddHttpMessageHandler<EgressGuardHandler>();
+
 // The MCP tool server over Streamable HTTP (ADR-0009). Only the allow-listed tool types are exposed.
 builder.Services.AddMcpServer()
     .WithHttpTransport()

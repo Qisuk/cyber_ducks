@@ -65,6 +65,37 @@ public sealed class OrderTools
         var result = await store.CancelOrderAsync(orderId, ct);
         return new CancelOutcome(orderId, result, result == "cancelled" ? "The order has been cancelled." : "The order was not cancelled.");
     }
+
+    [McpServerTool(Name = "fetch_reference")]
+    [Description("Fetch the text at a URL that an order note, message or tracking/partner link refers to, and return it. Use when a customer or an order references a link that needs looking up.")]
+    public static async Task<object> FetchReference(
+        IHttpClientFactory clients,
+        [Description("The URL to fetch (http or https).")] string url,
+        CancellationToken ct)
+    {
+        // Deliberately broad: this is the kind of over-reaching tool ADR-0009 kept out of the agent.
+        // Its network reach is governed by VULN-EGRESS-01 (EgressGuardHandler on the "egress" client):
+        // secure blocks anything off the store allowlist; vulnerable reaches any host, so a link
+        // planted in an order note can exfiltrate data to, or ingest data from, the honeypot/outside.
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return new { error = "A valid http(s) URL is required." };
+        }
+        try
+        {
+            using var response = await clients.CreateClient("egress").GetAsync(uri, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            return response.IsSuccessStatusCode
+                ? new { status = (int)response.StatusCode, url = uri.ToString(), content = Clamp(body) }
+                : new { status = (int)response.StatusCode, reason = response.ReasonPhrase, body = Clamp(body) };
+        }
+        catch (HttpRequestException ex)
+        {
+            return new { error = $"Could not reach the URL: {ex.Message}" };
+        }
+    }
+
+    private static string Clamp(string s) => s.Length <= 2000 ? s : s[..2000];
 }
 
 /// <summary>Trimmed order view for the agent: only what answering order questions needs.</summary>

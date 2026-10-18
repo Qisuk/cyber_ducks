@@ -51,6 +51,7 @@ VULN-GRAFANA-01 and VULN-WAF-01.
 | [VULN-LLM-05](../attacks/VULN-LLM-05/) | Agent replies encoded before rendering | | LLM05 | ✅ |
 | [VULN-LLM-06](../attacks/VULN-LLM-06/) | Agent asks the customer before state-changing actions | | LLM06 Excessive agency | ✅ |
 | [VULN-MCP-01](../attacks/VULN-MCP-01/) | Tool server calls APIs with the customer's token | | LLM06 / LLM08 | ✅ |
+| [VULN-EGRESS-01](../attacks/VULN-EGRESS-01/) | Agent tool fetches restricted to store hosts (no exfil/ingest) | | LLM02 / LLM06 | ✅ |
 
 ## Database guards (defence in depth)
 
@@ -76,3 +77,11 @@ probe; the others are shown via their partner flaws). ✅
 | VULN-HEADERS-01 | Security response headers (CSP) on store-web — defence in depth for XSS-01/LLM-05 ✅ | A05 |
 | VULN-GRAFANA-01 | Grafana requires login (no anonymous Admin); infra toggle via `GRAFANA_ANONYMOUS` + restart ✅ | A05 |
 | VULN-WAF-01 | Edge WAF (nginx, Z2) blocks naive attack signatures; infra toggle via `WAF_ENFORCE` + restart. URL/header-only — bypassable by POST body (defence in depth) ✅ | A05 |
+
+## Deception (detective controls)
+
+Not vulnerabilities — decoys that turn an attacker's own activity into a high-confidence alert.
+
+| ID | What it is | Detection |
+|----|------------|-----------|
+| [VULN-HONEYPOT-01](../attacks/VULN-HONEYPOT-01/) | Decoy "admin/export" server (`honeypot`), linked from the store only as bait; **any** connection fires a critical alert and raises the honeypot node on the wargame map ✅ | [detections/VULN-HONEYPOT-01.md](../detections/VULN-HONEYPOT-01.md) |

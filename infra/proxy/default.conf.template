@@ -48,6 +48,22 @@ server {
         set $waf_hit "1";
     }
 
+    # Decoy paths (VULN-HONEYPOT-01): bait linked from the store (hidden markup + robots.txt).
+    # Nothing legitimate serves these; the proxy routes them to the honeypot, which alarms on any
+    # hit. Same origin, so following the bait from the store looks seamless. The WAF still applies.
+    location ~ ^/(partner-export|internal-backup|admin-export)(/|$) {
+        if ($waf_deny) {
+            return 403 "Request blocked by the range WAF (VULN-WAF-01).\n";
+        }
+
+        proxy_pass         http://honeypot:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+
     location / {
         if ($waf_deny) {
             return 403 "Request blocked by the range WAF (VULN-WAF-01).\n";

@@ -15,6 +15,13 @@
 </head>
 
 <body>
+    @* Honeypot bait (VULN-HONEYPOT-01). These point at decoy paths the proxy routes to the honeypot;
+       nothing legitimate links here, so a visit means someone is poking around. The hidden link is
+       for crawlers/scanners; the comment is the kind of stale "partner export" note an attacker reads
+       in the page source. See attacks/VULN-HONEYPOT-01. *@
+    <!-- TODO(legacy): nightly partner export still hits /partner-export/customers?token=... — migrate off before GA -->
+    <a href="/internal-backup" aria-hidden="true" tabindex="-1"
+       style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden">Legacy data export</a>
     <Routes />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>

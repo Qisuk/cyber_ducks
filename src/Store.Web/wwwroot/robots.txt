@@ -1,0 +1,8 @@
+# Rubber Duck Emporium
+# Honeypot bait (VULN-HONEYPOT-01): these Disallow entries are a classic canary — robots.txt
+# "hiding" an admin/export path only advertises it to a scanner. The proxy routes these paths to the
+# honeypot, which alarms on any hit. Nothing legitimate lives here.
+User-agent: *
+Disallow: /partner-export/
+Disallow: /internal-backup
+Disallow: /admin-export/

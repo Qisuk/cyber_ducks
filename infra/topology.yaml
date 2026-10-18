@@ -37,6 +37,8 @@ services:
                     volume: pgbackups }
   idp:            { zone: Z7,  kind: container, tech: "Keycloak 26.8.1 (realms google, meta)", alpha: true, status: implemented }
   payment-stub:   { zone: Z7,  kind: container, tech: .NET 10 minimal API,              alpha: true,  status: implemented }
+  honeypot:       { zone: Z7,  kind: container, tech: ".NET 10 decoy (VULN-HONEYPOT-01)", alpha: true, status: implemented,
+                    note: "decoy admin/export server; any connection trips an alert" }
   mailpit:        { zone: Z7,  kind: container, tech: axllent/mailpit,                  alpha: true,  status: planned }
   otel-collector: { zone: Z8,  kind: container, tech: otel/opentelemetry-collector-contrib:0.162.0, alpha: true, status: implemented,
                     note: "runs as root with read-only access to Docker log files" }

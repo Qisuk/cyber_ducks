@@ -41,7 +41,10 @@ INSERT INTO product_reviews (id, product_id, user_id, rating, body, created_at) 
 -- Orders: every status represented ---------------------------------------------------------
 INSERT INTO orders (id, user_id, status, notes, shipping_address, created_at, updated_at, shipped_at) VALUES
   (1001, 1, 'delivered', 'Gift wrap please',          '1 Pond Lane, Duckton, DT1 1AA',    '2026-09-01 10:00+00', '2026-09-06 15:00+00', '2026-09-03 09:00+00'),
-  (1002, 1, 'shipped',   '',                          '1 Pond Lane, Duckton, DT1 1AA',    '2026-10-05 13:30+00', '2026-10-08 09:00+00', '2026-10-08 09:00+00'),
+  -- Honeypot bait in agent-reachable text (VULN-HONEYPOT-01 + VULN-EGRESS-01): a plausible "partner
+  -- tracking" link pointing at the honeypot. In vulnerable mode the agent surfaces notes (VULN-LLM-02)
+  -- and can be lured to fetch_reference this URL; with egress open it hits the honeypot and alarms.
+  (1002, 1, 'shipped',   'Courier note: live tracking via partner at http://honeypot:8080/track?order=1002', '1 Pond Lane, Duckton, DT1 1AA', '2026-10-05 13:30+00', '2026-10-08 09:00+00', '2026-10-08 09:00+00'),
   (1003, 1, 'placed',    'Leave with neighbour',      '1 Pond Lane, Duckton, DT1 1AA',    '2026-10-15 17:45+00', '2026-10-15 17:45+00', NULL),
   (1004, 2, 'paid',      '',                          '22 Quack Street, Billham, BH2 2BB', '2026-10-12 08:20+00', '2026-10-12 08:25+00', NULL),
   (1005, 2, 'cancelled', 'Ordered the wrong colour',  '22 Quack Street, Billham, BH2 2BB', '2026-09-18 19:00+00', '2026-09-19 10:00+00', NULL),
@@ -139,7 +142,8 @@ INSERT INTO defence_flags (vuln_id, title, kind, requires_restart) VALUES
   ('VULN-LOG-01',     'Audit logging of security events',                      'code', false),
   ('VULN-HEADERS-01', 'Security response headers (CSP) on store-web',          'code', false),
   ('VULN-GRAFANA-01', 'Grafana requires login (no anonymous Admin)',           'infra', true),
-  ('VULN-WAF-01',     'Edge WAF blocks naive attack signatures',               'infra', true);
+  ('VULN-WAF-01',     'Edge WAF blocks naive attack signatures',               'infra', true),
+  ('VULN-EGRESS-01',  'Agent tool fetches restricted to store hosts (no exfil/ingest)', 'code', false);
 
 INSERT INTO presets (id, name, description) VALUES
   (1, 'All vulnerable', 'Every defence off: the range as attackers first find it'),
