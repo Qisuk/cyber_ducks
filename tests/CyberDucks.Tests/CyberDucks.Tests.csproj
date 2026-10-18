@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\RangeControl\RangeControl.csproj" Aliases="rangecontrol" />
     <ProjectReference Include="..\..\src\AgentTools\AgentTools.csproj" Aliases="agenttools" />
     <ProjectReference Include="..\..\src\AiAgent\AiAgent.csproj" Aliases="aiagent" />
+    <ProjectReference Include="..\..\src\Store.Web\Store.Web.csproj" Aliases="storeweb" />
   </ItemGroup>
 
   <ItemGroup>
