@@ -8,9 +8,9 @@ and secure code path; most apply within seconds, a few need a restart (marked be
 - **Detection** per ID: [`detections/<ID>.md`](../detections)
 - The flag titles below describe the **secure** behaviour (what "secure" turns on).
 
-**Catalogued so far (Phase 7 vertical slice):** VULN-IDOR-01, VULN-SQLI-01, VULN-AUTHZ-01,
-VULN-LLM-06 — full README + confirm probe + detection. The rest are wired as toggles; their
-attack/detection write-ups are pending.
+**Catalogued so far:** VULN-IDOR-01, VULN-SQLI-01, VULN-AUTHZ-01, VULN-LLM-06 (slice), plus
+VULN-MASS-01, VULN-LOGIC-01, VULN-LOGIC-02, VULN-AUTH-01, VULN-WEBHOOK-01, VULN-INFO-01 — each with
+a full README + confirm probe + detection. The rest are wired as toggles; write-ups are pending.
 
 ## Application & API
 
@@ -19,14 +19,14 @@ attack/detection write-ups are pending.
 | [VULN-IDOR-01](../attacks/VULN-IDOR-01/) | Object-level authorisation on orders and invoices | | API1 BOLA | ✅ |
 | [VULN-SQLI-01](../attacks/VULN-SQLI-01/) | Parameterised queries | | A03 Injection | ✅ |
 | [VULN-AUTHZ-01](../attacks/VULN-AUTHZ-01/) | Staff endpoints require a staff role | | API5 BFLA | ✅ |
-| VULN-MASS-01 | Allow-listed fields on profile updates | | API6 / Mass assignment | |
-| VULN-LOGIC-01 | Server recomputes prices and totals | | Business logic | |
-| VULN-LOGIC-02 | Order state rules enforced server-side | | Business logic | |
+| [VULN-MASS-01](../attacks/VULN-MASS-01/) | Allow-listed fields on profile updates | | API6 / Mass assignment | ✅ |
+| [VULN-LOGIC-01](../attacks/VULN-LOGIC-01/) | Server recomputes prices and totals | | Business logic | ✅ |
+| [VULN-LOGIC-02](../attacks/VULN-LOGIC-02/) | Order state rules enforced server-side | | Business logic | ✅ |
 | VULN-XSS-01 | Output encoding of user content | | A03 XSS | |
 | VULN-CSRF-01 | Anti-forgery tokens | | A01 / CSRF | |
-| VULN-AUTH-01 | Login throttling and lockout | | A07 | |
+| [VULN-AUTH-01](../attacks/VULN-AUTH-01/) | Login throttling and lockout | | A07 | ✅ |
 | VULN-SESSION-01 | Session and token handling | | A07 | |
-| VULN-INFO-01 | Generic error responses | | A05 | |
+| [VULN-INFO-01](../attacks/VULN-INFO-01/) | Generic error responses | | A05 | ✅ |
 | VULN-DBROLE-01 | store-api connects as least-privilege role | restart | A05 | |
 
 ## Auth & OAuth
@@ -65,5 +65,5 @@ Toggleable Postgres constraints/triggers (`set_guard()`), a second layer under t
 
 | ID | Secure behaviour | OWASP |
 |----|------------------|------|
-| VULN-WEBHOOK-01 | Signed payment webhooks | A08 |
+| [VULN-WEBHOOK-01](../attacks/VULN-WEBHOOK-01/) | Signed payment webhooks ✅ | A08 |
 | VULN-LOG-01 | Audit logging of security events | A09 |
