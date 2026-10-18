@@ -25,7 +25,7 @@ services:
   staff-browser:    { zone: Z1, kind: client }
   facilitator:      { zone: Z9, kind: client }
 
-  proxy:          { zone: Z2,  kind: container, tech: nginx,                            alpha: true,  status: planned }
+  proxy:          { zone: Z2,  kind: container, tech: "nginx (edge WAF, VULN-WAF-01)",   alpha: true,  status: implemented }
   store-web:      { zone: Z3,  kind: container, tech: .NET 10 Blazor Web App (static SSR), alpha: true, status: implemented }
   store-api:      { zone: Z3,  kind: container, tech: .NET 10 ASP.NET Core minimal API, alpha: true,  status: implemented }
   ai-agent:       { zone: Z3a, kind: container, tech: .NET 10 + Microsoft.Extensions.AI, alpha: true, status: implemented }

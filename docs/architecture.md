@@ -27,6 +27,26 @@
 `infra/topology.yaml` will be the single source of truth for services, networks and trust
 boundaries. It drives the Ops Console map and the diagrams below.
 
+### Network segmentation (Phase 8d)
+
+The trust zones above are enforced at the Docker-network layer: the one flat `range` net is split
+into tiers, and a service can reach another only when they share a network. Membership:
+
+| Network | internal | Members |
+|---------|:---:|---------|
+| `edge`  | | proxy, store-web — the DMZ; only the proxy publishes a host port |
+| `svc`   | | store-web, store-api, agent-tools, idp, payment-stub, otel-collector |
+| `agent` | | store-web, ai-agent, ollama, agent-tools, otel-collector — the agent sandbox (TB5) |
+| `data`  | ✓ | store-api, postgres, backup, postgres-exporter — no route off the host |
+| `obs`   | | otel-collector, lgtm, cadvisor, postgres-exporter |
+| `ops`   | | range-control, postgres, otel-collector — the isolated control plane (ADR-0011) |
+
+Blocks this enforces (verified container-to-container): the edge proxy cannot reach the data tier;
+**ai-agent and ollama cannot reach store-api or Postgres directly** — the agent's only route to any
+API is agent-tools (ADR-0009, TB5/TB11); idp and payment-stub cannot reach Postgres; and Grafana
+(`lgtm`) cannot reach the app or data tiers. store-web is the trusted front controller spanning
+`edge`/`svc`/`agent`; otel-collector is the telemetry hub spanning every tier that emits.
+
 ## Data flow (draft: refine during threat modelling)
 
 Boxes are **trust zones** (see `threat-model.md` §1.4). Every arrow that leaves a box crosses a
@@ -85,7 +105,7 @@ every app service sends OTLP.
 | 5 | OAuth via Keycloak ("Google"/"Meta") | ✓ | Done: social login, VULN-OAUTH-01/02/03 |
 | 6 | AI agent + agent-tools, swappable LLM (ADR-0010) | ✓ | Done: chat UI; VULN-LLM-02/05/06 wired |
 | 7 | Arm the range: vulnerability catalogue + attack scripts | | **In progress**: catalogue ([docs/vulnerabilities.md](vulnerabilities.md)); vertical slice IDOR/SQLI/AUTHZ/LLM-06 with confirm probes + detections |
-| 8 | Defence: detections, hardening, WAF, segmentation | | **In progress**: 8a (6 provisioned Grafana alerts + log card-number redaction), 8b (CSP/security-headers toggle VULN-HEADERS-01; Grafana anonymous-Admin infra toggle VULN-GRAFANA-01), 8c (nginx edge proxy Z2 + curated WAF toggle VULN-WAF-01, now owns the published port) done. Segmentation (8d) to come |
+| 8 | Defence: detections, hardening, WAF, segmentation | | **Done**: 8a (6 provisioned Grafana alerts + log card-number redaction), 8b (CSP/security-headers toggle VULN-HEADERS-01; Grafana anonymous-Admin infra toggle VULN-GRAFANA-01), 8c (nginx edge proxy Z2 + curated WAF toggle VULN-WAF-01, owns the published port), 8d (flat `range` net split into `edge`/`svc`/`agent`/`data`(internal)/`obs`/`ops` tiers — blocks verified) |
 | 9 | Wargame: Ops Console, scenarios, injects, role cards, after-action report | ✓ (basics) | Ops Console in range-control: map, injects, decision log, after-action report ([ADR-0008](decisions/0008-wargame-and-ops-console.md)) |
 
 **Alpha:** a store you can log into and order from, with telemetry and the AI agent. The alpha is
