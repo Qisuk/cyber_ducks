@@ -10,11 +10,15 @@ builder.Services.AddDefenceFlags(builder.Configuration); // VULN-LLM-02, VULN-LL
 // Tools execute inside an HTTP request, so they can read the customer's Authorization header.
 builder.Services.AddHttpContextAccessor();
 
-// The only outbound path: store-api, called as the customer (flow F22, VULN-AGENT-01 toggle later).
+// The only outbound path: store-api. Identity on each call is the VULN-MCP-01 toggle: the customer's
+// forwarded token (secure) or a shared service account (vulnerable), chosen in CustomerTokenHandler.
+var storeApiBaseUrl = builder.Configuration["StoreApi:BaseUrl"]
+    ?? throw new InvalidOperationException("StoreApi:BaseUrl is not configured.");
+builder.Services.AddSingleton<ServiceTokenProvider>();
+// A plain client (no token handler) used only to log the service account in (VULN-MCP-01 vulnerable).
+builder.Services.AddHttpClient("store-login", client => client.BaseAddress = new Uri(storeApiBaseUrl));
 builder.Services.AddTransient<CustomerTokenHandler>();
-builder.Services.AddHttpClient<StoreApiClient>(client =>
-        client.BaseAddress = new Uri(builder.Configuration["StoreApi:BaseUrl"]
-            ?? throw new InvalidOperationException("StoreApi:BaseUrl is not configured.")))
+builder.Services.AddHttpClient<StoreApiClient>(client => client.BaseAddress = new Uri(storeApiBaseUrl))
     .AddHttpMessageHandler<CustomerTokenHandler>();
 
 // The MCP tool server over Streamable HTTP (ADR-0009). Only the allow-listed tool types are exposed.

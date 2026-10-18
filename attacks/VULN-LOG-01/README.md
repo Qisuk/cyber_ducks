@@ -2,24 +2,25 @@
 
 | | |
 |---|---|
-| **Flag** | `VULN-LOG-01` (code) — **defined, not yet wired** (planned) |
-| **Where** | `audit_log` table ([02-schema.sql](../../infra/postgres/init/02-schema.sql)); emission is planned |
+| **Flag** | `VULN-LOG-01` (code) — **wired** (Phase 8) |
+| **Where** | `audit_log` table ([02-schema.sql](../../infra/postgres/init/02-schema.sql)); emission in [AuditLog.cs](../../src/Store.Api/Audit/AuditLog.cs) |
 | **Class** | OWASP A09:2021 — Security logging & monitoring failures |
 | **Threats** | TH3, TH12; asset A9 |
 
 ## Status
 
-The `audit_log` table exists but is **deliberately unused in the alpha**. The flag is on the panel;
-structured security-event emission is on the roadmap. Note the range still has rich **telemetry**
-(OTel traces/logs/metrics to Grafana) — the detections throughout this catalogue rely on it. LOG-01
-is specifically about a durable, queryable **audit trail** of security-relevant actions.
+**Wired (Phase 8).** Secure mode writes a structured `audit_log` row (with the current trace id) for
+each security-relevant action via [AuditLog.cs](../../src/Store.Api/Audit/AuditLog.cs); vulnerable mode
+is a no-op (`NoAuditLog`). Currently emitted: `login.success` / `login.failure` / `login.blocked`,
+`role.change` (the VULN-MASS-01 escalation lands here), and `order.cancel`. The range also has rich
+**telemetry** (OTel to Grafana) that the catalogue's detections rely on; LOG-01 is specifically the
+durable, queryable **audit trail** that outlives trace retention.
 
-## The intended weakness
+## The weakness
 
-Vulnerable mode: security-relevant actions (logins, role changes, cancellations, payments, social
-links, admin actions) are **not** recorded as audit events, so after an incident there is no reliable
-trail of who did what. This slows detection and makes the wargame's "when did we become aware?"
-question hard to answer. Secure mode writes an `audit_log` row (with trace id) for each such action.
+Vulnerable mode records **no** audit events, so after an incident there is no reliable trail of who
+did what — slowing detection and making the wargame's "when did we become aware?" question hard to
+answer. Secure mode writes an `audit_log` row per security-relevant action.
 
 ## Why it matters here
 

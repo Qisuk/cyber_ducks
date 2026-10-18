@@ -56,6 +56,7 @@ builder.Services.AddDefence<IProductSearch, VulnerableProductSearch, SecureProdu
 builder.Services.AddDefence<IProfileUpdate, VulnerableProfileUpdate, SecureProfileUpdate>("VULN-MASS-01");
 builder.Services.AddDefence<IOrderPricing, VulnerableOrderPricing, SecureOrderPricing>("VULN-LOGIC-01");
 builder.Services.AddDefence<IOrderCancellation, VulnerableOrderCancellation, SecureOrderCancellation>("VULN-LOGIC-02");
+builder.Services.AddDefence<Store.Api.Audit.IAuditLog, Store.Api.Audit.NoAuditLog, Store.Api.Audit.DbAuditLog>("VULN-LOG-01");
 
 // Payments: shared webhook secret and the payment-stub client.
 builder.Services.AddSingleton(new WebhookOptions(

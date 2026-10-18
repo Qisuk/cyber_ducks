@@ -49,7 +49,7 @@ public static class OrderEndpoints
 
     private static async Task<IResult> CancelOrderAsync(
         int id, ClaimsPrincipal principal, StoreDbContext db,
-        IOrderAccess access, IOrderCancellation cancellation, CancellationToken ct)
+        IOrderAccess access, IOrderCancellation cancellation, Audit.IAuditLog audit, CancellationToken ct)
     {
         var found = await access.FindAsync(id, CurrentUserId(principal), ct);
         if (found is null)
@@ -72,6 +72,8 @@ public static class OrderEndpoints
             invoice.Status = "void";
         }
         await db.SaveChangesAsync(ct);
+        await audit.WriteAsync("order.cancel", CurrentUserId(principal), "order", order.Id.ToString(),
+            new { order.Status }, ct);
         return Results.Ok(new { order.Id, order.Status });
     }
 

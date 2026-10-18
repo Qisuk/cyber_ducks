@@ -144,6 +144,10 @@ services:
     environment:
       ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
       StoreApi__BaseUrl: http://store-api:8080/
+      # VULN-MCP-01 vulnerable path: the shared service account agent-tools logs in as (a seeded
+      # persona with orders, so the cross-account leak is visible). Fake range credential.
+      AgentTools__ServiceAccount__Email: bob@duckstore.test
+      AgentTools__ServiceAccount__Password: ${PERSONA_BOB_PASSWORD:-letmein}
       <<: *otel
       OTEL_SERVICE_NAME: agent-tools
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks

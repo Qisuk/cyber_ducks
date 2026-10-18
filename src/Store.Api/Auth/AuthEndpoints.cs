@@ -90,7 +90,7 @@ public static class AuthEndpoints
 
     private static async Task<IResult> UpdateProfileAsync(
         UpdateProfileRequest request, ClaimsPrincipal principal, StoreDbContext db,
-        IProfileUpdate update, JwtIssuer jwt, CancellationToken ct)
+        IProfileUpdate update, JwtIssuer jwt, Audit.IAuditLog audit, CancellationToken ct)
     {
         var id = int.Parse(principal.FindFirstValue("sub") ?? principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var user = await db.Users.FindAsync([id], ct);
@@ -99,9 +99,17 @@ public static class AuthEndpoints
             return Results.Unauthorized();
         }
 
+        var oldRole = user.Role;
         // Which fields get bound is the VULN-MASS-01 decision.
         update.Apply(user, request);
         await db.SaveChangesAsync(ct);
+
+        // A role change is security-relevant (privilege escalation via VULN-MASS-01 lands here).
+        if (!string.Equals(oldRole, user.Role, StringComparison.Ordinal))
+        {
+            await audit.WriteAsync("role.change", user.Id, "user", user.Id.ToString(),
+                new { from = oldRole, to = user.Role }, ct);
+        }
 
         // Re-issue the token so any role change takes effect immediately (realistic for the demo).
         return IssueToken(jwt, user);
@@ -149,6 +157,7 @@ public static class AuthEndpoints
         IPasswordVerifier verifier,
         ILoginGuard guard,
         JwtIssuer jwt,
+        Audit.IAuditLog audit,
         ILogger<Program> log,
         CancellationToken ct)
     {
@@ -160,6 +169,7 @@ public static class AuthEndpoints
         if (block != LoginBlock.None)
         {
             Record("blocked", email, clientIp, log);
+            await audit.WriteAsync("login.blocked", user?.Id, "user", null, new { email, clientIp }, ct);
             // Always generic: a blocked attempt must not confirm the account exists.
             return Results.Json(new { message = "Invalid email or password." }, statusCode: StatusCodes.Status401Unauthorized);
         }
@@ -168,6 +178,8 @@ public static class AuthEndpoints
         {
             await guard.RecordFailureAsync(user, clientIp, ct);
             Record(user is null ? "unknown-user" : "bad-password", email, clientIp, log);
+            await audit.WriteAsync("login.failure", user?.Id, "user", null,
+                new { email, clientIp, reason = user is null ? "unknown-user" : "bad-password" }, ct);
 
             var message = guard.RevealsReason
                 ? user is null ? "No account with that email." : "Incorrect password."
@@ -177,6 +189,7 @@ public static class AuthEndpoints
 
         await guard.RecordSuccessAsync(user, ct);
         Record("success", email, clientIp, log, user.Id);
+        await audit.WriteAsync("login.success", user.Id, "user", user.Id.ToString(), new { email, clientIp }, ct);
         return IssueToken(jwt, user);
     }
 

@@ -2,31 +2,31 @@
 
 | | |
 |---|---|
-| **Flag** | `VULN-MCP-01` (code) — **secure path built; vulnerable variant not yet wired** (planned) |
+| **Flag** | `VULN-MCP-01` (code) — **wired** (Phase 8) |
 | **Where** | agent-tools → store-api calls ([CustomerTokenHandler.cs](../../src/AgentTools/CustomerTokenHandler.cs)) |
 | **Class** | OWASP LLM06 (excessive agency) / LLM08 |
 | **Threats** | CT53; assets A1 |
 
 ## Status
 
-The **secure** behaviour is implemented and verified (Phase 6a): agent-tools forwards the customer's
-JWT to store-api, so every tool call is scoped to that customer, and with no token there is no
-access. The **vulnerable** variant — swapping the forwarded token for a shared service account — is
-defined on the panel but **not yet wired**.
+**Wired (Phase 8).** Secure (verified Phase 6a): agent-tools forwards the customer's JWT to store-api,
+so every tool call is scoped to that customer, and with no token there is no access. Vulnerable: the
+handler drops the customer token and logs in as a shared **service account** (a seeded persona,
+configured in compose), calling store-api as that account for everyone.
 
-## The intended weakness
+## The weakness
 
-Vulnerable mode would have agent-tools call store-api as a broad **service account** instead of the
-customer. Then a tool (or an over-broad future tool like `search_orders`) could read **any**
-customer's data, and prompt injection could pull data across accounts — the tool gateway becomes a
-confused deputy. Secure mode (current) calls as the customer, so store-api's own authorization
-(IDOR/AUTHZ checks) still applies per request.
+In vulnerable mode agent-tools calls store-api as a broad **service account** instead of the customer,
+so tool results reflect that account rather than the signed-in customer — and an over-broad future
+tool, or prompt injection, could pull data across accounts. The tool gateway becomes a confused
+deputy. Secure mode calls as the customer, so store-api's own authorization (IDOR/AUTHZ) still applies
+per request.
 
-## How it is / will be confirmed
+## How it is confirmed
 
-Secure path, today (Phase 6a verification): a tool call with no customer token returns an error — no
-ambient access. When the vulnerable variant lands, a probe will show a tool returning another
-customer's data via the service account.
+Secure: a tool call with no customer token returns an error — no ambient access. Vulnerable: sign in as
+one customer and ask the agent for "my orders" — it returns the **service account's** orders, not the
+caller's (cross-account via the confused deputy).
 
 ## Observe in telemetry
 
