@@ -1,0 +1,64 @@
+# Cyber Ducks edge proxy (zone Z2) — single entry point in front of store-web, with a
+# curated, teaching-oriented WAF. Rendered from this template by the nginx image's envsubst at
+# start-up; only ${WAF_ENFORCE} is substituted (NGINX_ENVSUBST_FILTER=WAF_), so the nginx $vars
+# below are left intact.
+#
+# VULN-WAF-01 (infra toggle, ADR-0011): WAF_ENFORCE=off (range default) proxies everything and only
+# *logs* matches; WAF_ENFORCE=on returns 403 on a match. The rules are deliberately simple and
+# signature-based — they catch naive payloads in the URL/query/headers but DO NOT inspect request
+# bodies, so a POST-based attack sails straight through. That gap is the lesson: an edge WAF is
+# defence in depth, never a substitute for fixing the app (encoding, parameterised queries, authz).
+
+# --- WAF signatures (matched against the request line, query string and a few headers) ---------
+map $request_uri $waf_uri_bad {
+    default 0;
+    "~*(\.\./|%2e%2e|/etc/passwd|/\.git/|/\.env\b)"                                         1;  # traversal / secret files
+    "~*(\bunion\b.+\bselect\b|\bselect\b.+\bfrom\b|\binsert\b.+\binto\b|\bdrop\b.+\btable\b)" 1;  # SQLi
+    "~*(;--|/\*|\bor\b\s+1=1|\band\b\s+1=1)"                                                  1;  # SQLi tautology / comment
+    "~*(<script|%3cscript|onerror=|onload=|javascript:)"                                      1;  # XSS
+}
+map $http_user_agent $waf_ua_bad {
+    default 0;
+    "~*(sqlmap|nikto|nmap|masscan|acunetix|nessus|wpscan|dirbuster|gobuster)" 1;  # scanner tooling
+}
+
+# Any signature hit.
+map "$waf_uri_bad$waf_ua_bad" $waf_suspect {
+    default 1;
+    "00"    0;
+}
+
+# Enforce only when suspect AND WAF_ENFORCE=on. Otherwise log-only.
+map "$waf_suspect:${WAF_ENFORCE}" $waf_deny {
+    default 0;
+    "1:on"  1;
+}
+
+# Log format carries the WAF verdict so detections can see hits (and whether they were blocked).
+log_format waf '$remote_addr "$request" $status ua="$http_user_agent" '
+               'waf_suspect=$waf_suspect waf_deny=$waf_deny waf_enforce=${WAF_ENFORCE}';
+
+server {
+    listen 80;
+    server_name _;
+    access_log /dev/stdout waf;
+
+    # Mark suspect requests in the error log too, so a hit is visible even on a 200 (log-only mode).
+    if ($waf_suspect) {
+        set $waf_hit "1";
+    }
+
+    location / {
+        if ($waf_deny) {
+            return 403 "Request blocked by the range WAF (VULN-WAF-01).\n";
+        }
+
+        proxy_pass         http://store-web:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 340s;   # the chat agent can be slow on CPU inference
+    }
+}

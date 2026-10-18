@@ -27,6 +27,35 @@ x-http-health: &http-health
   start_period: 10s
 
 services:
+  # --- Z2 Edge ----------------------------------------------------------------------------
+  # Single entry point on 127.0.0.1:${STORE_PORT}. Reverse-proxies store-web and runs a curated,
+  # teaching WAF (VULN-WAF-01). Deliberately URL/header-only — it does not inspect request bodies.
+  proxy:
+    image: nginx:1.27-alpine
+    labels: { range.zone: Z2 }
+    environment:
+      # VULN-WAF-01 (infra toggle): "off" = log-only (range default), "on" = block matches with 403.
+      WAF_ENFORCE: ${WAF_ENFORCE:-off}
+      # Only substitute WAF_* placeholders in the template; leave nginx's own $vars alone.
+      NGINX_ENVSUBST_FILTER: WAF_
+    volumes:
+      - ./infra/proxy/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    ports:
+      - "127.0.0.1:${STORE_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      store-web: { condition: service_healthy }
+    mem_limit: 32m
+    cpus: 0.5
+    logging: *logging
+    restart: unless-stopped
+    networks: [range]
+
   # --- Z3 Application ---------------------------------------------------------------------
   store-api:
     build: { context: ., dockerfile: src/Store.Api/Dockerfile }
@@ -88,9 +117,10 @@ services:
       <<: *otel
       OTEL_SERVICE_NAME: store-web
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z3,service.namespace=cyber-ducks
-    ports:
-      # Temporary: published directly until the proxy (Z2) takes over this port in step 3e.
-      - "127.0.0.1:${STORE_PORT:-8080}:8080"
+    # No published port: the edge proxy (Z2) now owns ${STORE_PORT} and is the only way in.
+    # Reach store-web directly from another container at http://store-web:8080.
+    expose:
+      - "8080"
     volumes:
       # Data Protection keys: login cookies survive restarts (decision 1).
       - webkeys:/keys

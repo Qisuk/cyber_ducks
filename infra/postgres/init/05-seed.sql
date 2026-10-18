@@ -138,7 +138,8 @@ INSERT INTO defence_flags (vuln_id, title, kind, requires_restart) VALUES
   ('VULN-WEBHOOK-01', 'Signed payment webhooks',                               'code', false),
   ('VULN-LOG-01',     'Audit logging of security events',                      'code', false),
   ('VULN-HEADERS-01', 'Security response headers (CSP) on store-web',          'code', false),
-  ('VULN-GRAFANA-01', 'Grafana requires login (no anonymous Admin)',           'infra', true);
+  ('VULN-GRAFANA-01', 'Grafana requires login (no anonymous Admin)',           'infra', true),
+  ('VULN-WAF-01',     'Edge WAF blocks naive attack signatures',               'infra', true);
 
 INSERT INTO presets (id, name, description) VALUES
   (1, 'All vulnerable', 'Every defence off: the range as attackers first find it'),
