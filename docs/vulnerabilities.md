@@ -10,8 +10,8 @@ and secure code path; most apply within seconds, a few need a restart (marked be
 
 **Catalogued so far:** the application/API set (IDOR, SQLI, AUTHZ, MASS, LOGIC-01/02, AUTH, INFO),
 the browser tier (XSS, CSRF, SESSION), WEBHOOK, the DB-guard family, and LLM-06 — each with a README
-+ confirm probe (or deterministic test) + detection. Pending: OAUTH-01/02/03, PWD, PCI, DBROLE,
-LLM-01/02/05, MCP-01, LOG-01.
++ confirm probe (or deterministic test) + detection. Also catalogued: OAUTH-01/02/03, PWD, PCI,
+DBROLE. Pending: LLM-01/02/05, MCP-01, LOG-01.
 
 ## Application & API
 
@@ -28,17 +28,17 @@ LLM-01/02/05, MCP-01, LOG-01.
 | [VULN-AUTH-01](../attacks/VULN-AUTH-01/) | Login throttling and lockout | | A07 | ✅ |
 | [VULN-SESSION-01](../attacks/VULN-SESSION-01/) | Session and token handling | | A07 | ✅ |
 | [VULN-INFO-01](../attacks/VULN-INFO-01/) | Generic error responses | | A05 | ✅ |
-| VULN-DBROLE-01 | store-api connects as least-privilege role | restart | A05 | |
+| [VULN-DBROLE-01](../attacks/VULN-DBROLE-01/) | store-api connects as least-privilege role | restart | A05 | ✅ |
 
 ## Auth & OAuth
 
 | ID | Secure behaviour | Restart | OWASP | Catalogued |
 |----|------------------|:---:|------|:---:|
-| VULN-OAUTH-01 | OAuth state/CSRF protection on social login | restart | A07 | |
-| VULN-OAUTH-02 | Strict OAuth redirect-URI matching | restart | A07 | |
-| VULN-OAUTH-03 | Link social logins only on a verified email | | A07 | |
-| VULN-PWD-01 | Password storage | | A02 | |
-| VULN-PCI-01 | Card data storage (tokenisation) | | A02 / PCI | |
+| [VULN-OAUTH-01](../attacks/VULN-OAUTH-01/) | OAuth state/CSRF protection on social login | restart | A07 | ✅ |
+| [VULN-OAUTH-02](../attacks/VULN-OAUTH-02/) | Strict OAuth redirect-URI matching | restart | A07 | ✅ |
+| [VULN-OAUTH-03](../attacks/VULN-OAUTH-03/) | Link social logins only on a verified email | | A07 | ✅ |
+| [VULN-PWD-01](../attacks/VULN-PWD-01/) | Password storage | | A02 | ✅ |
+| [VULN-PCI-01](../attacks/VULN-PCI-01/) | Card data storage (tokenisation) | | A02 / PCI | ✅ |
 
 ## AI agent (OWASP LLM Top 10)
 
