@@ -39,6 +39,33 @@ One person can facilitate and red-team at once for a small run.
 The three defender tools bind to `127.0.0.1` on the host only — the Kali VM cannot reach
 them. Attacker on the LAN, blue team on the host.
 
+### Logging in (important gotcha)
+
+The store offers two ways to sign in, and they do **not** behave the same across addresses:
+
+| Access via | Local login (email + password) | Google / Meta social login |
+|---|---|---|
+| `localhost:8080` (host) | ✅ works | ✅ works |
+| `192.168.56.1:8080` (LAN / Kali) | ✅ works | ❌ fails — `redirect_uri` is pinned to `localhost` |
+
+Social login (Google/Meta) is deliberately registered only for `http://localhost:8080` in
+Keycloak, so hitting the Google/Meta buttons from the LAN IP returns a Keycloak 400
+(`Invalid parameter: redirect_uri`). That is expected, not a fault.
+
+**Practical rule for players on the LAN IP:** use a **local persona** to sign in, which
+unlocks "Ask the Duck" (the AI assistant) and checkout:
+
+| Persona | Email | Password | Role |
+|---|---|---|---|
+| Alice | `alice@duckstore.test` | `password1` | customer (weak pw) |
+| Bob | `bob@duckstore.test` | `letmein` | customer (weak pw) |
+| Eve | `eve@duckstore.test` | (see `.env`) | staff |
+| Mallory | `mallory@duckstore.test` | (see `.env`) | admin |
+
+For anything that exercises the **Google/Meta flow** (the VULN-OAUTH scenarios), run it from
+the host via `http://localhost:8080`, not the LAN IP. "Can't see the chatbot" and "checkout
+doesn't work" almost always mean *not signed in* — both pages are `[Authorize]`.
+
 ---
 
 ## 3. Two ways to run

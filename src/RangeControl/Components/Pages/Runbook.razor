@@ -1,0 +1,54 @@
+@page "/runbook"
+@attribute [Authorize]
+@inject IConfiguration Config
+@using Markdig
+
+<PageTitle>Runbook · Range Control</PageTitle>
+
+<h1 class="h3 mb-0">Facilitator runbook</h1>
+<p class="text-secondary small">
+    How to run an exercise on the range, plus a worked example. Source:
+    <code>wargame/RUNBOOK.md</code>.
+</p>
+
+@if (_error is not null)
+{
+    <div class="alert alert-warning">@_error</div>
+}
+else
+{
+    <article class="rc-runbook">@((MarkupString)_html)</article>
+}
+
+<style>
+    .rc-runbook { max-width: 920px; line-height: 1.55; }
+    .rc-runbook h1 { font-size: 1.6rem; margin-top: 1.8rem; }
+    .rc-runbook h2 { font-size: 1.3rem; margin-top: 1.8rem; border-bottom: 1px solid var(--bs-border-color, #333); padding-bottom: .3rem; }
+    .rc-runbook h3 { font-size: 1.1rem; margin-top: 1.4rem; }
+    .rc-runbook table { border-collapse: collapse; margin: 1rem 0; width: 100%; }
+    .rc-runbook th, .rc-runbook td { border: 1px solid var(--bs-border-color, #444); padding: .4rem .6rem; text-align: left; vertical-align: top; }
+    .rc-runbook th { background: rgba(127,127,127,.15); }
+    .rc-runbook code { background: rgba(127,127,127,.18); padding: .1rem .3rem; border-radius: 3px; }
+    .rc-runbook pre { background: rgba(127,127,127,.12); padding: .8rem; border-radius: 6px; overflow-x: auto; }
+    .rc-runbook pre code { background: none; padding: 0; }
+    .rc-runbook blockquote { border-left: 3px solid var(--bs-warning, #f0ad4e); margin: 1rem 0; padding: .3rem 1rem; color: inherit; opacity: .9; }
+    .rc-runbook hr { border: 0; border-top: 1px solid var(--bs-border-color, #333); margin: 2rem 0; }
+</style>
+
+@code {
+    private string _html = "";
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        var path = Config["Wargame:RunbookPath"] ?? "/range/wargame/RUNBOOK.md";
+        if (!File.Exists(path))
+        {
+            _error = $"Runbook not found at {path}. It is mounted from wargame/RUNBOOK.md.";
+            return;
+        }
+
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        _html = Markdown.ToHtml(File.ReadAllText(path), pipeline);
+    }
+}

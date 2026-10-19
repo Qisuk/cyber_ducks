@@ -48,5 +48,12 @@ else
         </tfoot>
     </table>
 
-    <a class="btn btn-warning" href="checkout">Checkout</a>
+    <AuthorizeView>
+        <Authorized>
+            <a class="btn btn-warning" href="checkout">Checkout</a>
+        </Authorized>
+        <NotAuthorized>
+            <a class="btn btn-warning" href="login?returnUrl=%2Fcheckout">Sign in to check out</a>
+        </NotAuthorized>
+    </AuthorizeView>
 }
