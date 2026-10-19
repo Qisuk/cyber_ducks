@@ -117,6 +117,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+// Turn a 401 from store-api (expired session JWT) into a redirect to /login instead of an
+// unhandled error page. Inner of the dev/exception handler so it intercepts the 401 first.
+app.UseMiddleware<Store.Web.Services.ApiAuthRedirectMiddleware>();
+
 app.MapHealthChecks("/health/live");
 app.MapHealthChecks("/health/ready");
 app.MapStaticAssets();
