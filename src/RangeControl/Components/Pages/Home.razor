@@ -3,8 +3,56 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @inject FlagAdminService Admin
 @inject DefenceDetailSource Details
+@inject IConfiguration Config
 
 <PageTitle>Range Control</PageTitle>
+
+<details class="rc-intro mb-4" open>
+    <summary class="h5 mb-0" style="cursor:pointer;">🦆 Range Control — facilitator console</summary>
+    <p class="text-secondary mt-2 mb-3">
+        The control plane for the Cyber Ducks range: a deliberately-vulnerable rubber-duck shop
+        for practising attack and defence. From here you arm or disarm each weakness, run incident
+        wargames, and watch detections land. Defenders attack the store from the LAN; you and the
+        blue team work from the host.
+    </p>
+    <div class="row g-3">
+        <div class="col-md-6 col-lg-4">
+            <div class="border rounded p-2 h-100">
+                <div class="fw-semibold">🛡️ Defences <span class="badge bg-secondary">this page</span></div>
+                <div class="small text-secondary">Toggle each vulnerability vulnerable ⇄ secure (live, no restart).
+                    Expand a row for how to attack it and how the fix works.</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="border rounded p-2 h-100">
+                <div class="fw-semibold"><a href="wargame">🎯 Wargame</a></div>
+                <div class="small text-secondary">Create and run incident exercises. Open an exercise to drive the
+                    dual-layer map (detected vs ground truth), release injects, and log decisions.</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="border rounded p-2 h-100">
+                <div class="fw-semibold"><a href="runbook">📖 Runbook</a></div>
+                <div class="small text-secondary">How to run an exercise, log-in notes, and the defender's
+                    Grafana guide — a worked example end to end.</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="border rounded p-2 h-100">
+                <div class="fw-semibold"><a href="@Config["ExternalLinks:Grafana"]" target="_blank" rel="noopener">📊 SIEM (Grafana) ↗</a></div>
+                <div class="small text-secondary">Logs, traces, metrics and alert rules — where defenders spot
+                    and investigate attacks.</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="border rounded p-2 h-100">
+                <div class="fw-semibold"><a href="@Config["ExternalLinks:Store"]" target="_blank" rel="noopener">🛒 Store ↗</a></div>
+                <div class="small text-secondary">The target application itself — browse it as a customer to see
+                    what the attacks act on.</div>
+            </div>
+        </div>
+    </div>
+</details>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
