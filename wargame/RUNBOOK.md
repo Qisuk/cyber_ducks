@@ -202,7 +202,74 @@ the whole teaching point of the range in miniature.
 
 ---
 
-## 7. Scenario → vuln → detection cheat-sheet
+## 7. Defender's Grafana guide — spotting and investigating attacks
+
+Grafana is at `http://localhost:3000` (anonymous admin is on by default). It's a Grafana
+LGTM stack: **Loki** (logs), **Tempo** (traces), **Prometheus** (metrics). Two jobs: *spot*
+an attack, then *investigate* it.
+
+### (a) Spotting — passive monitoring
+
+**Alerting is the first alarm.** **Alerting → Alert rules.** Eight rules are armed; each trips
+on a real attack signature and (when SIEM-01 is secure) raises the matching node on the
+Range Control detected map:
+
+| Alert | Fires on | Lights node | Attack |
+|---|---|---|---|
+| Login 401 spike | rate of `401` on `/api/auth/login` | store-api | credential stuffing / brute force (VULN-AUTH-01) |
+| store-api 5xx spike | rate of `5xx` from store-api | store-api | error probing (VULN-INFO-01) |
+| store-api database errors | logs `npgsql \| syntax error` | store-api | **SQL injection** (VULN-SQLI-01) |
+| Payment webhook rejected | logs `rejected payment webhook` | store-api | forged webhook (VULN-WEBHOOK-01) |
+| DB guard violation | `violates check constraint` | postgres | invalid write blocked (VULN-GUARD) |
+| OIDC correlation failures | `correlation failed \| nonce \| state` | store-web | login CSRF / replay (VULN-OAUTH-01) |
+| **Honeypot connection** | `HONEYPOT HIT` | honeypot | decoy touched — **critical** (VULN-HONEYPOT-01) |
+
+> Some attacks are silent by design. **IDOR** and the **agent prompt-injection** scenario have
+> *no* alert — a fully working attack shows nothing in Alerting. "No alert" ≠ "no incident".
+
+**The "Range health" dashboard** (Dashboards → Range health). Eyeball the golden signals even
+when nothing alerts: request rate, error rate (4xx/5xx), latency, and the error-logs panel.
+IDOR, which has no alert, is *spotted* here as a burst of `GET /api/orders/{id}` across
+hundreds of distinct ids from one client — normal customers fetch a handful of their own.
+
+### (b) Investigating — the Loki → Tempo pivot
+
+Open **Explore** (compass icon) and drill:
+
+**1. Logs (Loki).** Scope to the service + time window and grep for the signature:
+```logql
+{service_name="store-api"} |~ `(?i)npgsql|syntax error`     # SQLi probes
+{service_name="store-api"} |= `/api/orders/`                 # IDOR id-walk: one client, many ids
+{service_name="honeypot"}  |= `HONEYPOT HIT`                 # decoy: logs client IP, path, UA
+```
+Read off **which client, which window, which targets** — that is your scope.
+
+**2. Traces (Tempo).** This range's superpower: every request span carries the defence
+decision as a searchable tag. In Tempo search, query by attribute:
+- `defence.VULN-IDOR-01 = vulnerable` → every request that actually ran the vulnerable path.
+- Span attributes give the route, status, client, and the customer/order id — so you can size
+  **real impact** (ids actually returned `200` to the attacker vs. merely attempted).
+- Click a Loki log line's trace id to jump straight to its full trace.
+
+**3. Scope & evidence — before anyone flips a flag.** Capture the attacker's client, the time
+window, the exact ids/rows touched, and whether sensitive data was actually returned. That is
+what the DPO/legal injects demand (how many customers, what data, when did we become aware).
+
+### The 30-second loop (IDOR)
+
+1. **Spot:** Range health shows a spike of `/api/orders/*` from one client (no alert — the lesson).
+2. **Logs:** `{service_name="store-api"} |= `/api/orders/`` → one client, hundreds of ids, mostly `200`.
+3. **Traces:** search `defence.VULN-IDOR-01 = vulnerable`, read the order ids vs. the session's
+   customer id → confirm it is reading *other* customers' orders.
+4. **Decide:** flip VULN-IDOR-01 → secure, re-run, confirm the same requests now return
+   `403/404` and the trace tag flips to `secure`.
+
+Every vuln has a detection doc with its exact signal and query in `detections/`
+(`detections/VULN-SQLI-01.md`, `VULN-AUTH-01.md`, …) — worth having open per scenario.
+
+---
+
+## 8. Scenario → vuln → detection cheat-sheet
 
 | Scenario | Primary vuln(s) | Does an alert fire? |
 |---|---|---|
