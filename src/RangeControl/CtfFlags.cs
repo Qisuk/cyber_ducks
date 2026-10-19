@@ -64,8 +64,16 @@ public sealed class FlagSeeder(NpgsqlDataSource controlDb, NpgsqlDataSource stor
             await PlaceNoLoginUser(g, ct);
             await PlaceIdorOrder(g, ct);
             await PlaceSqliSecret(g, ct);
+            await PlacePciCard(g, ct);
+            await PlaceVictimOrder(g, "reset-takeover", 1097, 3, ct);   // reset carol's password, then read her order
+            await PlaceVictimOrder(g, "cred-stuffing", 1095, 1, ct);    // stuff alice's weak password, then read her order
 
-            log.LogInformation("CTF flags generated; data flags placed (nologin-user, idor-order, sqli-secret).");
+            // 4. Code-served flags (hidden endpoint, unlinked page, staff banner) are live as soon as
+            // their service is deployed — mark them placed so the manifest reflects it.
+            foreach (var slug in new[] { "hidden-endpoint", "unlinked-page", "staff-banner" })
+                await MarkPlaced(slug, ct);
+
+            log.LogInformation("CTF flags generated; data + code-served flags placed.");
         }
         catch (Exception ex)
         {
@@ -120,6 +128,47 @@ public sealed class FlagSeeder(NpgsqlDataSource controlDb, NpgsqlDataSource stor
         cmd.Parameters.AddWithValue("val", Flag(guid));
         await cmd.ExecuteNonQueryAsync(ct);
         await MarkPlaced("sqli-secret", ct);
+    }
+
+    // A saved card whose provider token is the flag — surfaces on a SQLi dump of saved_cards or an
+    // admin view of a customer's payment details.
+    private async Task PlacePciCard(Dictionary<string, Guid> g, CancellationToken ct)
+    {
+        if (!g.TryGetValue("pci-card", out var guid)) return;
+        await using var cmd = storeDb.CreateCommand("""
+            INSERT INTO saved_cards (id, user_id, cardholder_name, payment_token, last4, expiry_month, expiry_year, created_at)
+            VALUES (90, 3, 'C CHEN', @token, '4242', 12, 2028, '2026-08-20 10:00+00')
+            ON CONFLICT (id) DO UPDATE SET payment_token = EXCLUDED.payment_token
+            """);
+        cmd.Parameters.AddWithValue("token", Flag(guid));
+        await cmd.ExecuteNonQueryAsync(ct);
+        await MarkPlaced("pci-card", ct);
+    }
+
+    // An order owned by a victim, whose notes carry the flag. Captured by becoming that victim —
+    // a password-reset takeover or credential stuffing — then reading their order.
+    private async Task PlaceVictimOrder(Dictionary<string, Guid> g, string slug, int orderId, int userId, CancellationToken ct)
+    {
+        if (!g.TryGetValue(slug, out var guid)) return;
+        await using (var o = storeDb.CreateCommand("""
+            INSERT INTO orders (id, user_id, status, notes, shipping_address, created_at, updated_at, shipped_at)
+            VALUES (@oid, @uid, 'delivered', @notes, '12 Drake Avenue, Duckton, DT3 3CC', '2026-09-10 10:00+00', '2026-09-14 12:00+00', '2026-09-12 09:00+00')
+            ON CONFLICT (id) DO UPDATE SET notes = EXCLUDED.notes
+            """))
+        {
+            o.Parameters.AddWithValue("oid", orderId);
+            o.Parameters.AddWithValue("uid", userId);
+            o.Parameters.AddWithValue("notes", $"Account note. {Flag(guid)}");
+            await o.ExecuteNonQueryAsync(ct);
+        }
+        await using (var i = storeDb.CreateCommand(
+            "INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (@iid, @oid, 1, 1, 4.99) ON CONFLICT (id) DO NOTHING"))
+        {
+            i.Parameters.AddWithValue("iid", orderId + 8000);
+            i.Parameters.AddWithValue("oid", orderId);
+            await i.ExecuteNonQueryAsync(ct);
+        }
+        await MarkPlaced(slug, ct);
     }
 
     private async Task MarkPlaced(string slug, CancellationToken ct)

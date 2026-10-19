@@ -1,0 +1,19 @@
+@page "/legacy/invoice-archive"
+@inject CyberDucks.Shared.Ctf.CtfFlagReader Flags
+
+@* CTF flag `unlinked-page`: this page is linked from nowhere and found only by content discovery
+   (dir brute, sitemap/source scraping). The flag sits in the page source below — view-source. *@
+<PageTitle>Invoice archive</PageTitle>
+
+<h1>Invoice archive</h1>
+<p class="text-body-secondary">
+    This page is retired. Historical invoices have moved to the finance system. If you reached this
+    by a bookmark, please use <a href="orders">My orders</a> instead.
+</p>
+
+<input type="hidden" id="archive-build-token" value="@_flag" />
+
+@code {
+    private string? _flag;
+    protected override async Task OnInitializedAsync() => _flag = await Flags.GetAsync("unlinked-page");
+}

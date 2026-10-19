@@ -24,6 +24,8 @@ builder.Services.AddDefenceFlags(builder.Configuration);
 builder.Services.AddSingleton(new Store.Api.Flags.CtfFlagValidator(
     builder.Configuration.GetConnectionString("Flags")
         ?? throw new InvalidOperationException("ConnectionStrings:Flags is not configured.")));
+builder.Services.AddSingleton(new CyberDucks.Shared.Ctf.CtfFlagReader(
+    builder.Configuration.GetConnectionString("Flags")!));
 builder.Services.AddSingleton(TimeProvider.System);
 
 // Store database. 'Store' connects as store_owner (vulnerable DB-role mode); 'StoreApp' as the

@@ -1,11 +1,19 @@
 @page "/staff"
 @attribute [Authorize]
 @inject StoreApiClient Api
+@inject CyberDucks.Shared.Ctf.CtfFlagReader Flags
 
 <PageTitle>Fulfilment · Rubber Duck Emporium</PageTitle>
 
 <h1>Fulfilment queue</h1>
 <p class="text-body-secondary">Staff only — ship orders that have been placed or paid.</p>
+
+@* CTF flag `staff-banner`: shown at the top of the staff screen, so reaching it (via privilege
+   escalation to a staff role) captures the flag. Only rendered once staff access is confirmed. *@
+@if (_orders is not null && _flag is not null)
+{
+    <div class="alert alert-dark small">🔒 Internal fulfilment build — token: <code>@_flag</code></div>
+}
 
 @if (_loaded && _orders is null)
 {
@@ -54,10 +62,15 @@ else
 @code {
     private IReadOnlyList<StaffOrderSummary>? _orders;
     private bool _loaded;
+    private string? _flag;
 
     protected override async Task OnInitializedAsync()
     {
         _orders = await Api.GetStaffOrdersAsync();
         _loaded = true;
+        if (_orders is not null)
+        {
+            _flag = await Flags.GetAsync("staff-banner");
+        }
     }
 }

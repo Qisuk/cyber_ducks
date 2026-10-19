@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using CyberDucks.Shared.Ctf;
 using Npgsql;
 
 namespace Store.Api.Flags;
@@ -58,6 +59,19 @@ public static class FlagEndpoints
                     : "Submitted. The facilitator will verify it.",
             });
         });
+
+        // CTF flag `hidden-endpoint`: an undocumented diagnostics endpoint store-web never calls.
+        // Found by API enumeration / fuzzing. Unauthenticated, like a left-in debug route.
+        app.MapGet("/api/diagnostics", async (CtfFlagReader flags, CancellationToken ct) =>
+            Results.Ok(new
+            {
+                status = "ok",
+                service = "store-api",
+                build = "dev",
+                note = "internal diagnostics — do not expose",
+                token = await flags.GetAsync("hidden-endpoint", ct),
+            }));
+
         return app;
     }
 }

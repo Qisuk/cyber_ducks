@@ -9,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddRangeTelemetry();
 builder.Services.AddDefenceFlags(builder.Configuration);
+builder.Services.AddSingleton(new CyberDucks.Shared.Ctf.CtfFlagReader(
+    builder.Configuration.GetConnectionString("Flags")!));
 
 // Static server-side rendering only (decision 2): every page is a plain HTTP request/form post,
 // so traffic is easy to inspect and replay with an intercepting proxy.

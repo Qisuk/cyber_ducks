@@ -6,6 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddRangeTelemetry();
 builder.Services.AddDefenceFlags(builder.Configuration); // VULN-LLM-02, VULN-LLM-06
+builder.Services.AddSingleton(new CyberDucks.Shared.Ctf.CtfFlagReader(
+    builder.Configuration.GetConnectionString("Flags")!));
 
 // Tools execute inside an HTTP request, so they can read the customer's Authorization header.
 builder.Services.AddHttpContextAccessor();

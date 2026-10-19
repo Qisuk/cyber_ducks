@@ -1,0 +1,27 @@
+using Npgsql;
+
+namespace CyberDucks.Shared.Ctf;
+
+/// <summary>
+/// Reads CTF flag values by slug from range_control.ctf_flags (the flags_reader connection), for
+/// code-served flags (a hidden endpoint, an unlinked page, a staff banner, a secret agent tool, …).
+/// Values are generated per deployment, so they are never in Git.
+/// </summary>
+public sealed class CtfFlagReader(string connectionString)
+{
+    private readonly NpgsqlDataSource _db = NpgsqlDataSource.Create(connectionString);
+
+    public async Task<string> GetAsync(string slug, CancellationToken ct = default)
+    {
+        try
+        {
+            await using var cmd = _db.CreateCommand("SELECT guid FROM ctf_flags WHERE slug = @s AND guid IS NOT NULL");
+            cmd.Parameters.AddWithValue("s", slug);
+            return await cmd.ExecuteScalarAsync(ct) is Guid g ? $"flag{{{g}}}" : "flag{not-generated}";
+        }
+        catch
+        {
+            return "flag{unavailable}";
+        }
+    }
+}
