@@ -11,6 +11,7 @@ using OpenTelemetry;
 using Store.Api;
 using Store.Api.Auth;
 using Store.Api.Catalogue;
+using Store.Api.Flags;
 using Store.Api.Orders;
 using Store.Api.Payments;
 using Store.Api.Staff;
@@ -20,6 +21,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddRangeTelemetry();
 builder.Services.AddDefenceFlags(builder.Configuration);
+builder.Services.AddSingleton(new Store.Api.Flags.CtfFlagValidator(
+    builder.Configuration.GetConnectionString("Flags")
+        ?? throw new InvalidOperationException("ConnectionStrings:Flags is not configured.")));
 builder.Services.AddSingleton(TimeProvider.System);
 
 // Store database. 'Store' connects as store_owner (vulnerable DB-role mode); 'StoreApp' as the
@@ -131,6 +135,7 @@ app.MapAuth();
 app.MapOrders();
 app.MapPayments();
 app.MapStaff();
+app.MapFlags();
 
 app.Run();
 

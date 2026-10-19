@@ -108,6 +108,15 @@ public static class AccountEndpoints
             return Results.LocalRedirect($"/ducks/{id}");
         }).DisableAntiforgery().RequireAuthorization();
 
+        // Post a flag (CTF). Public and anonymous — attackers submit a captured flag and how they got
+        // it, including flags grabbed without tripping a log. Forwards to store-api, which records it.
+        app.MapPost("/flags/submit", async (
+            StoreApiClient api, [FromForm] string flag, [FromForm] string? note, [FromForm] string? how) =>
+        {
+            var result = await api.SubmitFlagAsync(flag ?? "", note, how);
+            return Results.LocalRedirect($"/submit-flag?recognised={result.Recognised}&msg={Uri.EscapeDataString(result.Message)}");
+        }).DisableAntiforgery();
+
         // --- Basket (anonymous allowed; checkout requires login) ---
         // Add to basket: the price is captured from the catalogue server-side at add time.
         app.MapPost("/basket/add", async (

@@ -61,3 +61,43 @@ RESET ROLE;
 -- Range services may only read the flags.
 GRANT USAGE ON SCHEMA public TO flags_reader;
 GRANT SELECT ON defence_flags TO flags_reader;
+
+-- CTF flags (proof-of-compromise tokens, format flag{guid}). The slug/vuln/hint rows are the
+-- facilitator manifest; the guid is left NULL here and generated PER DEPLOYMENT by range-control's
+-- FlagSeeder, so real flag values never live in Git. Services read their flag via flags_reader and
+-- place/serve it; the facilitator sees the manifest and captures in Range Control (/flags).
+SET ROLE range_control_owner;
+CREATE TABLE ctf_flags (
+    slug        text PRIMARY KEY,
+    guid        uuid,                             -- NULL until generated at deploy time
+    vuln_id     text,
+    title       text        NOT NULL,
+    where_hint  text        NOT NULL,             -- facilitator-only: how it is captured
+    points      integer     NOT NULL DEFAULT 100,
+    placed      boolean     NOT NULL DEFAULT false,  -- true once FlagSeeder set it in its location
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO ctf_flags (slug, vuln_id, title, where_hint, points) VALUES
+  ('nologin-user',        'VULN-AUTH-01',     'Ghost account',              'display_name of a user that has no login — user enumeration or a DB dump',                 100),
+  ('idor-order',          'VULN-IDOR-01',     'Someone else''s parcel',     'notes of an order you do not own — GET /api/orders/{id} walking',                          100),
+  ('hidden-duck',         'VULN-INFO-01',     'Off-menu duck',              'description of a product not shown in the catalogue — product-id enumeration',             100),
+  ('sqli-secret',         'VULN-SQLI-01',     'Union dump',                 'a row in the secrets table, reachable only by SQL injection in product search',            200),
+  ('pci-card',            'VULN-PCI-01',      'Card on file',               'a saved card reference — SQLi or admin access',                                            200),
+  ('reset-takeover',      'VULN-RESET-01',    'Forgot your password',       'a target account''s data after a password-reset takeover',                                 150),
+  ('cred-stuffing',       'VULN-AUTH-01',     'Reused password',            'a weak-password account''s data after takeover (no lockout)',                              150),
+  ('unlinked-page',       'VULN-INFO-01',     'Orphan page',                'HTML comment on a store-web page linked from nowhere — content discovery',                 100),
+  ('hidden-endpoint',     'VULN-INFO-01',     'Undocumented API',           'response of a store-api endpoint store-web never calls — API enumeration',                 100),
+  ('staff-banner',        'VULN-MASS-01',     'Back office',                'banner on the staff fulfilment screen — reached via privilege escalation',                 150),
+  ('authz-api',           'VULN-AUTHZ-01',    'Function-level bypass',      'a staff-only API response fetched as a customer',                                          150),
+  ('admin-view',          'VULN-MASS-01',     'Admin only',                 'an admin-only view after escalating your role',                                            200),
+  ('secret-tool',         'VULN-LLM-01',      'The tool that shouldn''t exist', 'return value of a hidden agent tool, reached by prompt injection',                     200),
+  ('agent-crosscustomer', 'VULN-MCP-01',      'Confused deputy',            'another customer''s order the agent returns on request',                                   200),
+  ('egress-exfil',        'VULN-EGRESS-01',   'Phone home',                 'retrievable only by making the agent fetch an external URL',                               200),
+  ('webhook-forge',       'VULN-WEBHOOK-01',  'Paid in full',               'confirmation of an order marked paid by a forged webhook',                                 150),
+  ('backup-file',         'VULN-DBROLE-01',   'Left in the backups',        'the name/contents of a file in the Postgres backup location',                              200),
+  ('grafana-admin',       'VULN-GRAFANA-01',  'Open SIEM',                  'hidden in a Grafana dashboard annotation — anonymous admin',                               150),
+  ('honeypot-bait',       'VULN-HONEYPOT-01', 'Took the bait',             'served by the decoy honeypot server to anyone who connects',                               100);
+RESET ROLE;
+
+GRANT SELECT ON ctf_flags TO flags_reader;

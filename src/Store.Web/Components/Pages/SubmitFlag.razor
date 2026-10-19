@@ -1,0 +1,40 @@
+@page "/submit-flag"
+
+<PageTitle>Submit a flag · Rubber Duck Emporium</PageTitle>
+
+<h1>🚩 Submit a flag</h1>
+<p class="text-body-secondary">
+    Captured a <code>flag{…}</code>? Post it here with a note on how you collected it — handy for
+    flags you grabbed without tripping an alert. Every submission is logged for the facilitator.
+</p>
+
+@if (!string.IsNullOrEmpty(Msg))
+{
+    <div class="alert @(Recognised == true ? "alert-success" : "alert-info")">@Msg</div>
+}
+
+<div class="row">
+    <div class="col-lg-7">
+        @* Plain form post (static SSR; CSRF protection is VULN-CSRF-01). Public — no login needed. *@
+        <form method="post" action="/flags/submit">
+            <div class="mb-3">
+                <label class="form-label" for="flag">Flag</label>
+                <input class="form-control" id="flag" name="flag" placeholder="flag{00000000-0000-0000-0000-000000000000}" required autofocus />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="how">How did you collect it?</label>
+                <input class="form-control" id="how" name="how" placeholder="e.g. IDOR on /api/orders/1098" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="note">Notes (optional)</label>
+                <textarea class="form-control" id="note" name="note" rows="3"></textarea>
+            </div>
+            <button class="btn btn-warning" type="submit">Submit flag</button>
+        </form>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Msg { get; set; }
+    [SupplyParameterFromQuery] public bool? Recognised { get; set; }
+}

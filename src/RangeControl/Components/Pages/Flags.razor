@@ -1,0 +1,85 @@
+@page "/flags"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject CtfFlagService Ctf
+
+<PageTitle>Flags · Range Control</PageTitle>
+
+<h1 class="h3 mb-0">CTF flags</h1>
+<p class="text-secondary small">
+    Proof-of-compromise tokens (<code>flag{guid}</code>) and attacker submissions. Guids are generated
+    per deployment, so this manifest is facilitator-only. A flag counts as captured once a recognised
+    submission for it arrives (via the store's <em>Submit a flag</em> page).
+</p>
+
+@if (_manifest is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else
+{
+    <div class="mb-3">
+        <span class="badge bg-success">@_capturedSlugs.Count / @_manifest.Count captured</span>
+        <span class="badge bg-secondary">@_points pts</span>
+    </div>
+
+    <h2 class="h6 text-uppercase text-secondary">Manifest</h2>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Flag</th><th>Vuln</th><th>How it's captured</th><th>Pts</th><th>Placed</th><th>Captured</th><th>Value</th></tr></thead>
+        <tbody>
+            @foreach (var f in _manifest)
+            {
+                <tr class="@(_capturedSlugs.Contains(f.Slug) ? "table-success" : "")">
+                    <td>@f.Title <br /><code class="small text-secondary">@f.Slug</code></td>
+                    <td><code class="small">@f.VulnId</code></td>
+                    <td class="small text-secondary">@f.WhereHint</td>
+                    <td>@f.Points</td>
+                    <td>@(f.Placed ? "✅" : "—")</td>
+                    <td>@(_capturedSlugs.Contains(f.Slug) ? "🏁" : "—")</td>
+                    <td><code class="small">@(f.Guid is null ? "(not generated)" : $"flag{{{f.Guid}}}")</code></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h2 class="h6 text-uppercase text-secondary mt-4">Submissions (@_subs!.Count)</h2>
+    @if (_subs.Count == 0)
+    {
+        <p class="text-secondary small">No flags submitted yet.</p>
+    }
+    else
+    {
+        <table class="table table-sm align-middle">
+            <thead><tr><th>When</th><th>Flag</th><th>Recognised</th><th>How</th><th>Note</th><th>Source</th></tr></thead>
+            <tbody>
+                @foreach (var s in _subs)
+                {
+                    <tr class="@(s.Recognised ? "table-success" : "")">
+                        <td class="small">@s.At.ToLocalTime().ToString("HH:mm:ss")</td>
+                        <td><code class="small">@s.FlagText</code></td>
+                        <td class="small">@(s.Recognised ? $"✅ {s.MatchedSlug}" : "—")</td>
+                        <td class="small">@s.How</td>
+                        <td class="small">@s.Note</td>
+                        <td class="small text-secondary">@s.SourceIp</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private IReadOnlyList<CtfFlag>? _manifest;
+    private IReadOnlyList<FlagSubmission>? _subs;
+    private HashSet<string> _capturedSlugs = new();
+    private int _points;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _manifest = await Ctf.GetManifestAsync();
+        _subs = await Ctf.GetSubmissionsAsync();
+        _capturedSlugs = _subs.Where(s => s is { Recognised: true, MatchedSlug: not null })
+            .Select(s => s.MatchedSlug!).ToHashSet();
+        _points = _manifest.Where(f => _capturedSlugs.Contains(f.Slug)).Sum(f => f.Points);
+    }
+}

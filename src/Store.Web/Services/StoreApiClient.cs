@@ -3,6 +3,8 @@ using CyberDucks.Shared.Contracts;
 
 namespace Store.Web.Services;
 
+public sealed record FlagSubmitResult(bool Recognised, string Message);
+
 /// <summary>Typed client for store-api (flow F4).</summary>
 public sealed class StoreApiClient(HttpClient http)
 {
@@ -23,6 +25,14 @@ public sealed class StoreApiClient(HttpClient http)
 
     public Task<PingResponse?> PingAsync(CancellationToken ct = default) =>
         http.GetFromJsonAsync<PingResponse>("api/ping", ct);
+
+    /// <summary>Submit a captured CTF flag plus a note on how it was collected ("post a flag").</summary>
+    public async Task<FlagSubmitResult> SubmitFlagAsync(string flag, string? note, string? how, CancellationToken ct = default)
+    {
+        using var response = await http.PostAsJsonAsync("api/flags/submit", new { flag, note, how }, ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<FlagSubmitResult>(ct) ?? new FlagSubmitResult(false, "Submitted.");
+    }
 
     /// <summary>The current user from store-api, using the forwarded JWT.</summary>
     public Task<UserInfo?> GetMeAsync(CancellationToken ct = default) =>
