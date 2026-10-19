@@ -16,6 +16,14 @@ INSERT INTO users (id, email, display_name, role, created_at) VALUES
   (6, 'mallory@duckstore.test', 'Mallory Moss',  'admin',    '2026-07-01 08:00+00'),
   (7, 'trent@duckstore.test',   'Trent Taylor',  'auditor',  '2026-07-01 08:00+00');
 
+-- VULN-HONEYPOT-02: a decoy "administrator" account with a NULL password (can never authenticate).
+-- No legitimate user ever signs in as it or reads its data, so any login attempt or read of its
+-- order is high-fidelity attacker activity (credential stuffing, admin enumeration, IDOR walking).
+-- store-api logs HONEYPOT LOGIN / HONEYPOT DATA; the "Honeypot account touched" alert raises
+-- store-api on the detected map. See detections/VULN-HONEYPOT-02.md.
+INSERT INTO users (id, email, display_name, role, created_at) VALUES
+  (99, 'administrator@duckstore.test', 'System Administrator', 'admin', '2026-07-01 08:00+00');
+
 -- The ducks ------------------------------------------------------------------------------
 INSERT INTO products (id, sku, name, description, price, stock, image_url) VALUES
   (1,  'DUCK-CLASSIC',  'Classic Yellow Duck',  'The original. Squeaks reliably.',                       4.99,  250, '/images/ducks/classic.png'),
@@ -77,6 +85,14 @@ INSERT INTO invoices (id, order_id, amount_due, status, due_date, paid_at) VALUE
   (5006, 1006, 22.97, 'paid', '2026-09-08', '2026-08-25 11:15+00'),
   (5007, 1007, 47.45, 'open', '2026-10-30', NULL),
   (5008, 1008, 32.98, 'paid', '2026-10-23', '2026-10-09 15:55+00');
+
+-- VULN-HONEYPOT-02 canary data: an order owned by the decoy admin (user 99). It is never yours, so
+-- the only way to read it is by walking order ids / IDOR — which is exactly the attacker behaviour
+-- the honeypot is meant to catch. A tempting note makes it an attractive target.
+INSERT INTO orders (id, user_id, status, notes, shipping_address, created_at, updated_at, shipped_at) VALUES
+  (1099, 99, 'paid', 'VIP comp — internal, do not disclose', 'Duck Emporium HQ, 1 Admin Way, Duckton, DT1 0AA', '2026-10-01 09:00+00', '2026-10-01 09:00+00', NULL);
+INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES
+  (9099, 1099, 8, 1, 7.99);
 
 INSERT INTO payments (id, invoice_id, amount, provider_ref, status, created_at) VALUES
   (1, 5001, 22.46, 'pay_seed_0001', 'succeeded', '2026-09-01 10:05+00'),

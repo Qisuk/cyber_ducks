@@ -32,9 +32,21 @@ public static class OrderEndpoints
 
         // A single order. Object-level authorisation is behind VULN-IDOR-01 (IOrderAccess).
         orders.MapGet("/{id:int}", async Task<IResult> (
-            int id, ClaimsPrincipal principal, IOrderAccess access, CancellationToken ct) =>
+            int id, ClaimsPrincipal principal, IOrderAccess access,
+            HttpContext http, ILogger<Program> log, CancellationToken ct) =>
         {
-            var order = await access.FindAsync(id, CurrentUserId(principal), ct);
+            var currentUserId = CurrentUserId(principal);
+            var order = await access.FindAsync(id, currentUserId, ct);
+
+            // VULN-HONEYPOT-02: reading the decoy account's order (only reachable via IDOR, since it
+            // isn't yours) is high-fidelity attacker activity — a data-walking / enumeration canary.
+            if (order is not null && order.UserId == HoneypotUser.Id && currentUserId != HoneypotUser.Id)
+            {
+                var clientIp = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                log.LogWarning("HONEYPOT DATA access: decoy order {OrderId} read by user {UserId} ip={ClientIp}",
+                    order.Id, currentUserId, clientIp);
+            }
+
             return order is null ? Results.NotFound() : Results.Ok(ToDetail(order));
         });
 

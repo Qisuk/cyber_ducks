@@ -223,6 +223,14 @@ public static class AuthEndpoints
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var clientIp = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // VULN-HONEYPOT-02: the decoy admin account has no valid password, so this attempt will fail
+        // below — but no legitimate user ever tries it, so the attempt itself is the signal.
+        if (HoneypotUser.IsEmail(email))
+        {
+            log.LogWarning("HONEYPOT LOGIN attempt for decoy admin account email={Email} ip={ClientIp}", email, clientIp);
+        }
+
         var user = await db.Users.SingleOrDefaultAsync(u => u.Email == email, ct);
 
         var block = await guard.CheckAsync(user, clientIp, ct);
