@@ -66,6 +66,25 @@ For anything that exercises the **Google/Meta flow** (the VULN-OAUTH scenarios),
 the host via `http://localhost:8080`, not the LAN IP. "Can't see the chatbot" and "checkout
 doesn't work" almost always mean *not signed in* — both pages are `[Authorize]`.
 
+### The AI assistant is high-latency — widen tool timeouts
+
+"Ask the Duck" is answered by a local LLM (`qwen3:4b-instruct`) running on **CPU**. A reply
+routinely takes tens of seconds, and the first call after a restart can take ~90s while the
+model loads. The server waits patiently (store-web → agent is 330s, agent → model 300s) and a
+browser waits minutes, so from the host it just feels slow. But **automated tooling caps its
+read timeout far lower** and will report the assistant as broken when it is only slow:
+
+- **ZAP** defaults to a **20s** read timeout → `/assistant/send` fails with *"Failed to read…
+  within 20 seconds."* Raise it: **Tools → Options → Network → Connection → "Timeout in secs"
+  → 120** (older builds: Options → Connection). 120s is well under the 330s server ceiling.
+- **curl:** `--max-time 120`. **Python requests:** `timeout=120`. Any scanner/fuzzer: widen
+  the per-request timeout before pointing it at the agent.
+- **Warm it once** before a run — send one assistant message and let it finish; the model then
+  stays resident for 24h and later replies are quicker (still often >20s).
+
+Lesson for the agent scenario: a scanner left at default timeouts will miss the
+prompt-injection paths entirely, calling the AI tier "unavailable" when it is just slow.
+
 ---
 
 ## 3. Two ways to run
