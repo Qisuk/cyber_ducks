@@ -286,6 +286,8 @@ services:
     image: cyber-ducks/honeypot:dev
     labels: { range.zone: Z7, range.logs: otlp }
     environment:
+      # Read-only access to the CTF flag registry, to serve honeypot-bait / egress-exfil.
+      ConnectionStrings__Flags: Host=postgres;Database=range_control;Username=flags_reader;Password=${FLAGS_READER_PASSWORD}
       <<: *otel
       OTEL_SERVICE_NAME: honeypot
       OTEL_RESOURCE_ATTRIBUTES: range.zone=Z7,service.namespace=cyber-ducks
@@ -294,7 +296,7 @@ services:
     cpus: 0.5
     logging: *logging
     restart: unless-stopped
-    networks: [edge, svc]
+    networks: [edge, svc, flags]
 
   # Mail catcher: store-api sends password-reset and receipt emails here over SMTP (flow F15). The
   # web UI (published, localhost) is the "inbox" — in the reset-interception scenario it stands in for

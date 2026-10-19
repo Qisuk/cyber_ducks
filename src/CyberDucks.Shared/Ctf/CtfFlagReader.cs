@@ -7,15 +7,18 @@ namespace CyberDucks.Shared.Ctf;
 /// code-served flags (a hidden endpoint, an unlinked page, a staff banner, a secret agent tool, …).
 /// Values are generated per deployment, so they are never in Git.
 /// </summary>
-public sealed class CtfFlagReader(string connectionString)
+public sealed class CtfFlagReader(string? connectionString)
 {
-    private readonly NpgsqlDataSource _db = NpgsqlDataSource.Create(connectionString);
+    private NpgsqlDataSource? _db;
+    private NpgsqlDataSource? Db =>
+        _db ??= string.IsNullOrWhiteSpace(connectionString) ? null : NpgsqlDataSource.Create(connectionString);
 
     public async Task<string> GetAsync(string slug, CancellationToken ct = default)
     {
         try
         {
-            await using var cmd = _db.CreateCommand("SELECT guid FROM ctf_flags WHERE slug = @s AND guid IS NOT NULL");
+            if (Db is not { } db) return "flag{unavailable}";
+            await using var cmd = db.CreateCommand("SELECT guid FROM ctf_flags WHERE slug = @s AND guid IS NOT NULL");
             cmd.Parameters.AddWithValue("s", slug);
             return await cmd.ExecuteScalarAsync(ct) is Guid g ? $"flag{{{g}}}" : "flag{not-generated}";
         }

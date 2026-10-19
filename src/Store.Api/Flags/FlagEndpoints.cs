@@ -60,6 +60,13 @@ public static class FlagEndpoints
             });
         });
 
+        // CTF flag `admin-view`: an admin-only overview. Reached by escalating your role to admin
+        // (VULN-MASS-01 mass assignment on the profile) and signing in again, or taking over an admin.
+        app.MapGet("/api/admin/overview", async (System.Security.Claims.ClaimsPrincipal user, CtfFlagReader flags, CancellationToken ct) =>
+            user.IsInRole("admin")
+                ? Results.Ok(new { view = "admin-overview", token = await flags.GetAsync("admin-view", ct) })
+                : Results.Forbid()).RequireAuthorization();
+
         // CTF flag `hidden-endpoint`: an undocumented diagnostics endpoint store-web never calls.
         // Found by API enumeration / fuzzing. Unauthenticated, like a left-in debug route.
         app.MapGet("/api/diagnostics", async (CtfFlagReader flags, CancellationToken ct) =>

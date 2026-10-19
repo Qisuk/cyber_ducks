@@ -12,7 +12,18 @@ set -euo pipefail
 BACKUP_DIR=/backups
 DB=duckstore
 
+# CTF backup-file flag: left in the backups volume for anyone who reaches it (DB-role escalation,
+# path traversal, a stolen volume). The value is seeded into duckstore.secrets per deployment.
+write_restore_key() {
+    local flag
+    flag=$(psql -d "$DB" -tAc "SELECT value FROM secrets WHERE name='backup-file'" 2>/dev/null | tr -d '[:space:]')
+    if [[ -n "$flag" ]]; then
+        printf 'Restore key (keep secret): %s\n' "$flag" > "$BACKUP_DIR/RESTORE_KEY.txt"
+    fi
+}
+
 take_backup() {
+    write_restore_key
     local stamp file
     stamp=$(date -u +%Y%m%dT%H%M%SZ)
     file="$BACKUP_DIR/$DB-$stamp.dump"

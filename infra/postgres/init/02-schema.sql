@@ -42,7 +42,8 @@ CREATE TABLE products (
     description  text           NOT NULL DEFAULT '',
     price        numeric(10,2)  NOT NULL,
     stock        integer        NOT NULL DEFAULT 0,
-    image_url    text
+    image_url    text,
+    visible      boolean        NOT NULL DEFAULT true  -- false = not shown in the catalogue list (CTF hidden-duck)
 );
 
 CREATE TABLE product_reviews (

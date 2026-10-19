@@ -36,6 +36,7 @@ public sealed class Product
     public decimal Price { get; set; }
     public int Stock { get; set; }
     public string? ImageUrl { get; set; }
+    public bool Visible { get; set; } = true;
     public List<ProductReview> Reviews { get; set; } = [];
 }
 

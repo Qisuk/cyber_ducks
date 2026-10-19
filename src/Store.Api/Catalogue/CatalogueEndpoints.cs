@@ -19,6 +19,7 @@ public static class CatalogueEndpoints
         products.MapGet("/", async (StoreDbContext db, CancellationToken ct) =>
             await db.Products
                 .AsNoTracking()
+                .Where(p => p.Visible)   // CTF hidden-duck: a non-visible duck is reachable only by /{id} enumeration
                 .OrderBy(p => p.Id)
                 .Select(p => new ProductSummary(
                     p.Id, p.Sku, p.Name, p.Price, p.Stock, p.ImageUrl,

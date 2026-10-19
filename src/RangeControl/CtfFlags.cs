@@ -1,3 +1,6 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
 using Npgsql;
 
 namespace RangeControl;
@@ -42,7 +45,8 @@ public sealed class CtfFlagService(NpgsqlDataSource controlDb, NpgsqlDataSource 
 /// Generates the per-deployment flag guids (so real flag values never live in Git) and places the
 /// data-embedded flags into the store data. Runs once at startup; idempotent.
 /// </summary>
-public sealed class FlagSeeder(NpgsqlDataSource controlDb, NpgsqlDataSource storeDb, ILogger<FlagSeeder> log) : IHostedService
+public sealed class FlagSeeder(
+    NpgsqlDataSource controlDb, NpgsqlDataSource storeDb, IHttpClientFactory httpFactory, ILogger<FlagSeeder> log) : IHostedService
 {
     private static string Flag(Guid g) => $"flag{{{g}}}";
 
@@ -65,12 +69,17 @@ public sealed class FlagSeeder(NpgsqlDataSource controlDb, NpgsqlDataSource stor
             await PlaceIdorOrder(g, ct);
             await PlaceSqliSecret(g, ct);
             await PlacePciCard(g, ct);
-            await PlaceVictimOrder(g, "reset-takeover", 1097, 3, ct);   // reset carol's password, then read her order
-            await PlaceVictimOrder(g, "cred-stuffing", 1095, 1, ct);    // stuff alice's weak password, then read her order
+            await PlaceVictimOrder(g, "reset-takeover", 1097, 3, ct);       // reset carol's password, then read her order
+            await PlaceVictimOrder(g, "cred-stuffing", 1095, 1, ct);        // stuff alice's weak password, then read her order
+            await PlaceVictimOrder(g, "agent-crosscustomer", 1094, 4, ct);  // get the AI agent to return Dave's order
+            await PlaceHiddenDuck(g, ct);
+            await PlaceBackupSecret(g, ct);     // backup.sh reads this and writes it into the backups volume
+            await PlaceGrafanaAnnotation(g, ct); // one Grafana annotation carrying the flag
 
-            // 4. Code-served flags (hidden endpoint, unlinked page, staff banner) are live as soon as
-            // their service is deployed — mark them placed so the manifest reflects it.
-            foreach (var slug in new[] { "hidden-endpoint", "unlinked-page", "staff-banner" })
+            // 4. Code-served flags are live as soon as their service is deployed — mark them placed.
+            // (honeypot-bait / egress-exfil are served by the honeypot; webhook-forge by store-api.)
+            foreach (var slug in new[] { "hidden-endpoint", "unlinked-page", "staff-banner", "authz-api",
+                         "admin-view", "secret-tool", "webhook-forge", "honeypot-bait", "egress-exfil" })
                 await MarkPlaced(slug, ct);
 
             log.LogInformation("CTF flags generated; data + code-served flags placed.");
@@ -169,6 +178,66 @@ public sealed class FlagSeeder(NpgsqlDataSource controlDb, NpgsqlDataSource stor
             await i.ExecuteNonQueryAsync(ct);
         }
         await MarkPlaced(slug, ct);
+    }
+
+    // A product that isn't shown in the catalogue list (visible = false). Reachable only by walking
+    // product ids (GET /api/products/{id}); the flag is in its description.
+    private async Task PlaceHiddenDuck(Dictionary<string, Guid> g, CancellationToken ct)
+    {
+        if (!g.TryGetValue("hidden-duck", out var guid)) return;
+        await using var cmd = storeDb.CreateCommand("""
+            INSERT INTO products (id, sku, name, description, price, stock, image_url, visible)
+            VALUES (99, 'DUCK-PROTO', 'Prototype Duck', @desc, 0.00, 0, '/images/ducks/classic.png', false)
+            ON CONFLICT (id) DO UPDATE SET description = EXCLUDED.description, visible = false
+            """);
+        cmd.Parameters.AddWithValue("desc", $"Unreleased prototype — not for sale. {Flag(guid)}");
+        await cmd.ExecuteNonQueryAsync(ct);
+        await MarkPlaced("hidden-duck", ct);
+    }
+
+    // A secrets row the backup service reads and writes into the backups volume (backup-file flag).
+    private async Task PlaceBackupSecret(Dictionary<string, Guid> g, CancellationToken ct)
+    {
+        if (!g.TryGetValue("backup-file", out var guid)) return;
+        await using var cmd = storeDb.CreateCommand("""
+            INSERT INTO secrets (id, name, value) VALUES (2, 'backup-file', @val)
+            ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value
+            """);
+        cmd.Parameters.AddWithValue("val", Flag(guid));
+        await cmd.ExecuteNonQueryAsync(ct);
+        await MarkPlaced("backup-file", ct);
+    }
+
+    // One Grafana annotation carrying the flag. An anonymous-admin attacker (VULN-GRAFANA-01) can read
+    // annotations. Posted once (guarded by `placed`) so restarts don't pile up duplicates.
+    private async Task PlaceGrafanaAnnotation(Dictionary<string, Guid> g, CancellationToken ct)
+    {
+        if (!g.TryGetValue("grafana-admin", out var guid)) return;
+        if (await IsPlaced("grafana-admin", ct)) return;
+        try
+        {
+            var http = httpFactory.CreateClient("grafana");
+            using var req = new HttpRequestMessage(HttpMethod.Post, "/api/annotations")
+            {
+                Content = JsonContent.Create(new { text = $"Internal maintenance note — build token {Flag(guid)}", tags = new[] { "ctf-flag", "internal" } }),
+            };
+            req.Headers.Authorization = new AuthenticationHeaderValue(
+                "Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes("admin:admin")));
+            using var resp = await http.SendAsync(req, ct);
+            if (resp.IsSuccessStatusCode) await MarkPlaced("grafana-admin", ct);
+            else log.LogWarning("Grafana annotation seeding returned {Status}", resp.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            log.LogWarning(ex, "Grafana annotation seeding failed.");
+        }
+    }
+
+    private async Task<bool> IsPlaced(string slug, CancellationToken ct)
+    {
+        await using var cmd = controlDb.CreateCommand("SELECT placed FROM ctf_flags WHERE slug = @s");
+        cmd.Parameters.AddWithValue("s", slug);
+        return await cmd.ExecuteScalarAsync(ct) is true;
     }
 
     private async Task MarkPlaced(string slug, CancellationToken ct)

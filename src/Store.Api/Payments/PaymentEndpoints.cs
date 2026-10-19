@@ -47,7 +47,8 @@ public static class PaymentEndpoints
         // Inbound webhook from payment-stub. Anonymous by design (it's a server-to-server callback);
         // VULN-WEBHOOK-01 decides whether the signature is checked.
         app.MapPost("/api/payments/webhook", async Task<IResult> (
-            HttpContext http, StoreDbContext db, IWebhookVerifier verifier, ILogger<Program> log, CancellationToken ct) =>
+            HttpContext http, StoreDbContext db, IWebhookVerifier verifier, CyberDucks.Shared.Ctf.CtfFlagReader flags,
+            ILogger<Program> log, CancellationToken ct) =>
         {
             http.Request.EnableBuffering();
             using var reader = new StreamReader(http.Request.Body, leaveOpen: true);
@@ -93,7 +94,9 @@ public static class PaymentEndpoints
             }
             await db.SaveChangesAsync(ct);
             log.LogInformation("Invoice {InvoiceId} marked paid via webhook", invoice.Id);
-            return Results.Ok();
+            // CTF flag `webhook-forge`: the callback confirmation. In vulnerable mode the signature
+            // isn't checked, so a forged "succeeded" callback reaches here and the forger sees this.
+            return Results.Ok(new { status = "ok", invoice = invoice.Id, token = await flags.GetAsync("webhook-forge", ct) });
         });
 
         return app;

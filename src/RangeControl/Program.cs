@@ -23,7 +23,8 @@ var storeDb = new NpgsqlDataSourceBuilder(
         ?? throw new InvalidOperationException("ConnectionStrings:Duckstore is not configured.")).Build();
 builder.Services.AddSingleton(new FlagAdminService(controlDb, storeDb));
 builder.Services.AddSingleton(new CtfFlagService(controlDb, storeDb));
-builder.Services.AddHostedService(sp => new FlagSeeder(controlDb, storeDb, sp.GetRequiredService<ILogger<FlagSeeder>>()));
+builder.Services.AddHostedService(sp => new FlagSeeder(controlDb, storeDb,
+    sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<ILogger<FlagSeeder>>()));
 
 // Wargame / Ops Console (ADR-0008): exercise state in range_control; scenarios and the topology
 // are files mounted read-only into the container.

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CyberDucks.Shared.Contracts;
+using CyberDucks.Shared.Ctf;
 using Microsoft.EntityFrameworkCore;
 using Store.Api.Data;
 
@@ -11,6 +12,14 @@ public static class StaffEndpoints
     {
         // All endpoints require login; the staff-role check itself is VULN-AUTHZ-01 (IStaffGuard).
         var staff = app.MapGroup("/api/staff").WithTags("Staff").RequireAuthorization();
+
+        // CTF flag `authz-api`: a staff-only report. The guard is VULN-AUTHZ-01 — in vulnerable mode
+        // any signed-in customer passes IsStaff and gets the flag (broken function-level authz).
+        staff.MapGet("/report", async Task<IResult> (
+            ClaimsPrincipal user, IStaffGuard guard, CtfFlagReader flags, CancellationToken ct) =>
+            guard.IsStaff(user)
+                ? Results.Ok(new { report = "fulfilment-internal", token = await flags.GetAsync("authz-api", ct) })
+                : Results.Forbid());
 
         // The fulfilment queue: orders waiting to be shipped.
         staff.MapGet("/orders", async Task<IResult> (
