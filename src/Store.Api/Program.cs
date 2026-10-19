@@ -43,6 +43,8 @@ var jwtOptions = new JwtOptions
 {
     Secret = builder.Configuration["Jwt:Secret"]
         ?? throw new InvalidOperationException("Jwt:Secret is not configured."),
+    // Long enough to outlast a full wargame (override with Jwt__LifetimeMinutes).
+    LifetimeMinutes = builder.Configuration.GetValue("Jwt:LifetimeMinutes", 100),
 };
 builder.Services.AddSingleton(jwtOptions);
 builder.Services.AddSingleton<JwtIssuer>();
