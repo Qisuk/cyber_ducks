@@ -23,6 +23,7 @@ var storeDb = new NpgsqlDataSourceBuilder(
         ?? throw new InvalidOperationException("ConnectionStrings:Duckstore is not configured.")).Build();
 builder.Services.AddSingleton(new FlagAdminService(controlDb, storeDb));
 builder.Services.AddSingleton(new CtfFlagService(controlDb, storeDb));
+builder.Services.AddSingleton<DetectionCoverageService>();
 builder.Services.AddSingleton(sp => new FlagSeeder(controlDb, storeDb,
     sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<ILogger<FlagSeeder>>()));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FlagSeeder>());
@@ -99,6 +100,7 @@ app.MapPost("/account/logout", async (HttpContext http) =>
     return Results.Redirect("/login");
 }).DisableAntiforgery();
 
+app.MapReportExport();
 app.MapStaticAssets();
 // Pages require auth via AuthorizeRouteView ([Authorize] on Home); the framework/static endpoints
 // (blazor.web.js, assets) stay anonymous so the interactive circuit can boot.

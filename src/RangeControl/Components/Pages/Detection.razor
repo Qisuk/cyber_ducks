@@ -1,0 +1,59 @@
+@page "/detection"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@inject FlagAdminService Admin
+@inject DetectionCoverageService Coverage
+
+<PageTitle>Detection coverage · Range Control</PageTitle>
+
+<h1 class="h3 mb-0">Detection coverage</h1>
+<p class="text-secondary small">
+    Which vulnerabilities have a Grafana alert (read live from the provisioned rules), and which are
+    <strong>silent</strong> — a working attack shows nothing until someone reads the telemetry by hand.
+    Silent classes are the lesson, not a fault.
+</p>
+
+@if (_flags is null)
+{
+    <p class="text-secondary">Loading…</p>
+}
+else
+{
+    <div class="mb-3">
+        <span class="badge bg-success">@_covered covered</span>
+        <span class="badge bg-warning text-dark">@(_flags.Count - _covered) silent</span>
+    </div>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Vulnerability</th><th>Detection</th><th>Alert</th><th>Severity</th><th>Raises node</th></tr></thead>
+        <tbody>
+            @foreach (var f in _flags)
+            {
+                var det = _coverage.GetValueOrDefault(f.VulnId);
+                <tr class="@(det is null ? "" : "table-success")">
+                    <td>@f.Title <br /><code class="small text-secondary">@f.VulnId</code></td>
+                    <td class="small">@(det?.Name ?? "—")</td>
+                    <td>@(det is null ? "🔕 silent" : "🔔 alert")</td>
+                    <td class="small">@(det?.Severity ?? "")</td>
+                    <td class="small">@(det?.Node ?? "")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p class="small text-secondary">
+        Silent today: IDOR, mass-assignment, the AI-agent classes and most data/PII leaks — caught by
+        reading <code>agent.chat</code> / request spans, the honeypot, or reconciliation, not an alert.
+    </p>
+}
+
+@code {
+    private IReadOnlyList<DefenceFlag>? _flags;
+    private IReadOnlyDictionary<string, DetectionRule> _coverage = new Dictionary<string, DetectionRule>();
+    private int _covered;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _flags = await Admin.GetFlagsAsync();
+        _coverage = await Coverage.GetAsync();
+        _covered = _flags.Count(f => _coverage.ContainsKey(f.VulnId));
+    }
+}
