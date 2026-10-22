@@ -28,76 +28,18 @@ boundaries. It drives the Ops Console map and the diagrams below.
 ## Data flow (draft: refine during threat modelling)
 
 Boxes are **trust zones** (see `threat-model.md` §1.4). Every arrow that leaves a box crosses a
-trust boundary. ai-agent is outlined in red: it sits in Z3 but is an untrusted actor (T8), so its
-traffic with the rest of Z3 crosses boundary TB5. agent-tools is its only route to data, and its
-calls to APIs (and the results coming back) cross TB11.
-calls to APIs (and the results coming back) cross TB11.
+trust boundary. Inside Z3 there are two sub-zones:
+- **Z3a Agent (untrusted)**, outlined in red: ai-agent is an untrusted actor (T8). Anything crossing
+  this box's edge (F5, F8, F9, F21) crosses **TB5**.
+- **Z3b Tool gateway**: agent-tools, the agent's only route to data. Its calls to APIs and the
+  responses (F22, F23) cross **TB11**.
 
-```mermaid
-flowchart LR
-    subgraph Z1["Z1 Untrusted clients"]
-        U[Customer browser]
-        S[Staff browser]
-    end
-    subgraph Z2["Z2 Edge"]
-        P[proxy]
-    end
-    subgraph Z3["Z3 Application"]
-        W[store-web]
-        A[store-api]
-        G[ai-agent]
-        K[agent-tools]
-    end
-    subgraph Z4["Z4 LLM"]
-        O[ollama]
-    end
-    subgraph Z5["Z5 Data"]
-        D[(postgres)]
-    end
-    subgraph Z6["Z6 Backups"]
-        B[(backups)]
-    end
-    subgraph Z7["Z7 External providers"]
-        I[idp / Keycloak]
-        PS[payment-stub]
-        M[mailpit]
-    end
-    subgraph Z8["Z8 Observability"]
-        T[otel-collector / LGTM]
-    end
-    subgraph Z9["Z9 Range control"]
-        F[Facilitator / players]
-        C[ops-console]
-    end
+F16 (telemetry) is drawn as one arrow from the whole Application zone to keep the diagram readable;
+every app service sends OTLP.
 
-    classDef untrusted stroke:#d33,stroke-width:3px
-    class G untrusted
+![Data-flow diagram with trust zones](diagrams/data-flow.svg)
 
-    U -->|F1 HTTP| P
-    S -->|F2 HTTP| P
-    P -->|F3| W
-    W -->|F4 REST + JWT| A
-    W -->|F5 chat message| G
-    G -->|F6 prompt + context| O
-    O -->|F7 model output| G
-    G -->|F8 MCP tool call| K
-    K -->|F21 tool results| G
-    K -->|F22 API call as customer| A
-    A -->|F23 API response| K
-    G -->|F9 chat reply| W
-    A -->|F10 SQL| D
-    U <-.->|F11 OIDC login redirects| I
-    A -->|F12 code exchange + token validation| I
-    A -->|F13 charge| PS
-    PS -->|F14 webhook| A
-    A -->|F15 SMTP| M
-    W & A & G & K & PS -->|F16 OTLP| T
-    D -->|F17 pg_dump| B
-    F -->|F18 ops network only| C
-    C -->|F19 alert state| T
-    C -.->|F20 response actions: isolate, restore| Z3
-    C -.->|F20| Z5
-```
+*Source: [diagrams/data-flow.mmd](diagrams/data-flow.mmd). After editing it, run `npm run diagrams` (needs Node and Chrome or Edge) and commit both files.*
 
 ### Flows
 
