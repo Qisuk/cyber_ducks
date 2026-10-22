@@ -108,6 +108,19 @@ public static class AccountEndpoints
             return Results.LocalRedirect($"/ducks/{id}");
         }).DisableAntiforgery().RequireAuthorization();
 
+        // CTF flag `ci-secret` (VULN-CICD-01): a CI deploy config committed by mistake and served at a
+        // discoverable path. Classic secrets-in-repo / supply-chain leak — found by content discovery.
+        app.MapGet("/.well-known/ci-deploy.yml", async (CyberDucks.Shared.Ctf.CtfFlagReader flags, CancellationToken ct) =>
+        {
+            var token = await flags.GetAsync("ci-secret", ct);
+            var yaml = $"# Deploy pipeline — committed by mistake, rotate these.\n" +
+                       $"registry: registry.duckstore.internal\n" +
+                       $"image: duckstore/store-web\n" +
+                       $"deploy_token: {token}\n" +
+                       $"notify: ops@duckstore.test\n";
+            return Results.Text(yaml, "text/yaml; charset=utf-8");
+        });
+
         // Post a flag (CTF). Public and anonymous — attackers submit a captured flag and how they got
         // it, including flags grabbed without tripping a log. Forwards to store-api, which records it.
         app.MapPost("/flags/submit", async (

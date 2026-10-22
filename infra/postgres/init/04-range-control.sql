@@ -97,7 +97,8 @@ INSERT INTO ctf_flags (slug, vuln_id, title, where_hint, points) VALUES
   ('webhook-forge',       'VULN-WEBHOOK-01',  'Paid in full',               'confirmation of an order marked paid by a forged webhook',                                 150),
   ('backup-file',         'VULN-DBROLE-01',   'Left in the backups',        'the name/contents of a file in the Postgres backup location',                              200),
   ('grafana-admin',       'VULN-GRAFANA-01',  'Open SIEM',                  'hidden in a Grafana dashboard annotation — anonymous admin',                               150),
-  ('honeypot-bait',       'VULN-HONEYPOT-01', 'Took the bait',             'served by the decoy honeypot server to anyone who connects',                               100);
+  ('honeypot-bait',       'VULN-HONEYPOT-01', 'Took the bait',             'served by the decoy honeypot server to anyone who connects',                               100),
+  ('ci-secret',           'VULN-CICD-01',     'Secrets in the pipeline',    'a deploy token in a leaked CI config served at /.well-known/ci-deploy.yml',                100);
 RESET ROLE;
 
 GRANT SELECT ON ctf_flags TO flags_reader;

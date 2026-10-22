@@ -554,6 +554,24 @@ services:
     restart: unless-stopped
     networks: [data, obs]
 
+  # Falco EDR — host behavioural detection. OPT-IN via the `edr` profile (not started by default):
+  #   docker compose --profile edr up -d falco
+  # See infra/falco/README.md. Driver support varies on Docker Desktop / WSL2 — experimental.
+  falco:
+    image: falcosecurity/falco:0.39.2
+    profiles: [edr]
+    labels: { range.zone: Z8, range.logs: otlp }
+    privileged: true
+    environment:
+      FALCO_DRIVER: ${FALCO_DRIVER:-modern_ebpf}
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - /proc:/host/proc:ro
+      - ./infra/falco/range-rules.yaml:/etc/falco/rules.d/range-rules.yaml:ro
+    command: ["falco", "-o", "json_output=true", "-o", "engine.kind=${FALCO_DRIVER:-modern_ebpf}"]
+    logging: *logging
+    restart: unless-stopped
+
 networks:
   # Phase 8d segmentation: the flat `range` net is split into trust tiers. A service reaches
   # another only when they share a network; otherwise the connection is refused at L3.

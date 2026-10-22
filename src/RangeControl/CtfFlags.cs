@@ -95,7 +95,7 @@ public sealed class FlagSeeder(
             // 4. Code-served flags are live as soon as their service is deployed — mark them placed.
             // (honeypot-bait / egress-exfil are served by the honeypot; webhook-forge by store-api.)
             foreach (var slug in new[] { "hidden-endpoint", "unlinked-page", "staff-banner", "authz-api",
-                         "admin-view", "secret-tool", "webhook-forge", "honeypot-bait", "egress-exfil" })
+                         "admin-view", "secret-tool", "webhook-forge", "honeypot-bait", "egress-exfil", "ci-secret" })
                 await MarkPlaced(slug, ct);
 
             log.LogInformation("CTF flags generated; data + code-served flags placed.");

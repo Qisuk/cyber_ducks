@@ -1,0 +1,38 @@
+# Cyber Ducks — custom Falco rules for the range (behavioural EDR).
+# These sit alongside Falco's default ruleset and fire on post-exploitation behaviour the log-based
+# Grafana alerts cannot see: a shell in a container, unexpected outbound connections, reads of
+# sensitive files. Output is JSON on stdout; with range.logs=otlp the events reach Loki, where a
+# Grafana alert can raise the matching node on the wargame map (same pattern as the other detections).
+
+- rule: Shell spawned in a range container
+  desc: A shell was started inside one of the app containers — classic hands-on-keyboard after RCE.
+  condition: >
+    spawned_process and container and shell_procs
+    and container.name startswith "cyber-ducks-"
+  output: "RANGE-EDR shell in container (user=%user.name container=%container.name cmd=%proc.cmdline)"
+  priority: WARNING
+  tags: [range, shell, mitre_execution]
+
+- rule: Unexpected outbound connection from app tier
+  desc: An app container connected outbound to a host that is not another range service.
+  condition: >
+    outbound and container
+    and container.name startswith "cyber-ducks-"
+    and not fd.sip in (range_service_ips)
+  output: "RANGE-EDR unexpected egress (container=%container.name dest=%fd.sip:%fd.sport cmd=%proc.cmdline)"
+  priority: NOTICE
+  tags: [range, network, mitre_exfiltration]
+
+- rule: Sensitive file read in range
+  desc: A process read a backups file or an env/secret file inside a range container.
+  condition: >
+    open_read and container
+    and container.name startswith "cyber-ducks-"
+    and (fd.name startswith "/backups/" or fd.name endswith ".env" or fd.name contains "RESTORE_KEY")
+  output: "RANGE-EDR sensitive file read (container=%container.name file=%fd.name cmd=%proc.cmdline)"
+  priority: WARNING
+  tags: [range, filesystem, mitre_collection]
+
+# Placeholder list — tune to your Docker network subnet so legitimate intra-range traffic is excluded.
+- list: range_service_ips
+  items: []
