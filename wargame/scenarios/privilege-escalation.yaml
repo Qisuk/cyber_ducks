@@ -1,0 +1,144 @@
+# Wargame scenario (ADR-0008). Hybrid tabletop: players may investigate the real range telemetry in
+# Grafana, but decide at tabletop level. The facilitator releases injects from the Ops Console;
+# `at_minute` is the suggested time after the exercise starts. Phases follow NIST SP 800-61r2.
+#
+# Centres on VULN-MASS-01 (the profile update accepts a `role` field it should ignore — mass
+# assignment) letting an ordinary customer make themselves staff/admin. Aggravated by VULN-AUTHZ-01
+# (staff/admin endpoints don't re-check the role). Teaching nuance: there is NO dedicated alert for a
+# role change, so this is found by noticing a customer account suddenly using staff functions.
+
+id: privilege-escalation
+title: "The customer who promoted themselves"
+summary: A customer account is suddenly using staff-only functions — and it granted itself the access.
+duration_minutes: 75
+
+briefing: |
+  Rubber Duck Emporium Ltd (12 staff, ~4,000 customers) lets signed-in customers edit their profile
+  (name, and in the account API, more). Staff use a fulfilment console; admins can see an internal
+  overview. It is a UK GDPR data controller.
+
+  It is Thursday, 15:00. The on-call noticed a customer account doing things only staff should. You
+  are the incident response team. Log every decision and its reason in the Ops Console. Grafana
+  (http://localhost:3000) has the shop's logs, traces and metrics.
+
+injects:
+  - id: I1
+    at_minute: 0
+    phase: detection_analysis
+    audience: [all]
+    from: On-call engineer
+    title: A customer is acting like staff
+    body: |
+      "An account that signed up two days ago as a normal customer is calling the staff fulfilment
+      API and viewing the admin overview. It has no business having that access. The traces show the
+      calls succeeding, not being refused."
+
+  - id: I2
+    at_minute: 12
+    phase: detection_analysis
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: It promoted itself
+    body: |
+      "Found it. The profile-update call accepts a `role` field and writes it straight through — mass
+      assignment (VULN-MASS-01). The customer set their own role to admin, signed in again, and the
+      staff/admin endpoints don't re-check who's allowed (VULN-AUTHZ-01), so they just work. Two bugs,
+      one that grants the role and one that fails to stop it being used."
+
+  - id: I3
+    at_minute: 22
+    phase: detection_analysis
+    audience: [tech_lead, incident_commander, legal_dpo]
+    from: Security analyst
+    title: What did they touch?
+    body: |
+      "With admin/staff access they could see other customers' orders and the admin overview. I can
+      list exactly which endpoints that account hit and when, and whether it read other people's data
+      or just poked around. There's no alert for a role change, so we found this by eye."
+
+  - id: I4
+    at_minute: 34
+    phase: containment_eradication_recovery
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: Shut it down
+    body: |
+      "We can stop the profile update accepting `role` (flip VULN-MASS-01 to secure) and make the
+      staff/admin endpoints re-check the role (VULN-AUTHZ-01 to secure). We also need to reset this
+      account's role and expire its session. Which first, and how do we find anyone else who did the
+      same trick?"
+
+  - id: I5
+    at_minute: 46
+    phase: containment_eradication_recovery
+    audience: [legal_dpo, incident_commander]
+    from: Data Protection Officer
+    title: Did they see other customers' data?
+    body: |
+      "If this account viewed other customers' orders or personal data as 'staff', that's unauthorised
+      access. How many records, and when did we become aware? That decides ICO and whether we tell the
+      affected customers."
+
+  - id: I6
+    at_minute: 58
+    phase: containment_eradication_recovery
+    audience: [exec, comms]
+    from: Managing Director
+    title: How bad is this?
+    body: |
+      "Was this one curious customer or an organised attempt? Do we have to assume every account could
+      have done it? Give me the blast radius and what we're doing so it can't happen again."
+
+  - id: I7
+    at_minute: 68
+    phase: containment_eradication_recovery
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: Prove it's closed
+    body: |
+      "Both fixes are on. Re-try the role trick and confirm the profile update ignores `role` and the
+      staff endpoints now refuse a non-staff caller. What signal should become an alert so a future
+      self-promotion is detected, not stumbled on?"
+
+  - id: I8
+    at_minute: 73
+    phase: post_incident
+    audience: [all]
+    from: Board
+    title: Lessons learned
+    body: |
+      "One page: how a customer became admin, why nothing stopped them using it, what we fixed in
+      code, and the monitoring that will flag a role change or privileged call by a non-staff account."
+
+# Facilitator-only. Not shown to players.
+facilitator_notes: |
+  Ground truth: the profile-update endpoint binds a `role` field it should ignore (VULN-MASS-01
+  vulnerable), so a customer sets role=admin; the staff/admin endpoints don't re-check the role
+  (VULN-AUTHZ-01 vulnerable), so the escalated account's privileged calls succeed. This is a
+  broken-access-control incident: integrity (self-granted role) + confidentiality (reading others'
+  data as staff). Suggested ground-truth map: store-api = compromised (accepted the role write and
+  served privileged calls), postgres = suspected (role row changed; others' orders read), store-web =
+  normal. Set at start; reveal in the debrief.
+
+  Deliberate gap: there is NO alert for a role change or a privileged call by a fresh account, so the
+  DETECTED map will not auto-light — this was found by noticing the behaviour. Contrast with the
+  SQLi/AUTH scenarios where an alert fires. The detection to propose: a customer account calling
+  /api/staff/* or /api/admin/*, or a role transition to admin.
+
+  Key decision points:
+  - Establishing BOTH bugs matter: fixing only mass assignment leaves AUTHZ open to the next vector;
+    fixing only AUTHZ still lets the role be written (and other code may trust it).
+  - Scope: which privileged endpoints the account hit, and whether real customer data was read.
+  - Finding other self-promoted accounts (audit role != 'customer' on recently-created users).
+  - DPO: unauthorised access to others' data is a breach; awareness time recorded.
+
+debrief_questions:
+  - Why do both VULN-MASS-01 and VULN-AUTHZ-01 need fixing, and what does fixing only one leave open?
+  - How did you size what the escalated account actually accessed?
+  - Why did nothing alert, and what single signal would you turn into an alert?
+  - How would you find every account that pulled the same trick?
+
+# Facilitator-only ground truth, applied automatically on an auto-run.
+ground_truth:
+  - { node: store-api, state: compromised, note: "accepted a self-granted role and served privileged calls" }
+  - { node: postgres,  state: suspected,   note: "role changed; other customers' orders read as staff" }
