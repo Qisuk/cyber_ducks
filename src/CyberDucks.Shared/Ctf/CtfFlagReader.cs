@@ -27,4 +27,19 @@ public sealed class CtfFlagReader(string? connectionString)
             return "flag{unavailable}";
         }
     }
+
+    /// <summary>slug → points, for scoring the public leaderboard.</summary>
+    public async Task<IReadOnlyDictionary<string, int>> GetPointsAsync(CancellationToken ct = default)
+    {
+        var map = new Dictionary<string, int>();
+        try
+        {
+            if (Db is not { } db) return map;
+            await using var cmd = db.CreateCommand("SELECT slug, points FROM ctf_flags");
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct)) map[r.GetString(0)] = r.GetInt32(1);
+        }
+        catch { /* leaderboard degrades to zero points */ }
+        return map;
+    }
 }

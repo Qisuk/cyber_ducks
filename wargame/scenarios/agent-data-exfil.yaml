@@ -1,0 +1,150 @@
+# Wargame scenario (ADR-0008). Hybrid tabletop: players may investigate the real range telemetry in
+# Grafana, but decide at tabletop level. The facilitator releases injects from the Ops Console;
+# `at_minute` is the suggested time after the exercise starts. Phases follow NIST SP 800-61r2.
+#
+# Centres on VULN-EGRESS-01 (the agent tier can reach the internet) combined with VULN-LLM-02 (tool
+# results / order notes treated as instructions). An attacker plants an instruction in a place the
+# agent reads, and the agent is talked into fetching an attacker URL — carrying data out. The decoy
+# honeypot stands in for the attacker's collector, so the exfil hop is caught by the honeypot alert.
+
+id: agent-data-exfil
+title: "The duck that phoned home"
+summary: The AI assistant was tricked into sending order data to an outside address.
+duration_minutes: 75
+
+briefing: |
+  Rubber Duck Emporium Ltd (12 staff, ~4,000 customers) runs an AI "order assistant" that can look
+  things up for a signed-in customer, including following a tracking or partner link referenced in an
+  order. The shop is a UK GDPR data controller.
+
+  It is Wednesday, 14:00. The security monitoring flagged an outbound connection from inside the
+  range to a server nobody recognises, moments after a customer chat. You are the incident response
+  team. Log every decision and its reason in the Ops Console. Grafana (http://localhost:3000) has the
+  shop's logs, traces and metrics, including the agent's chat and tool-call spans and the honeypot.
+
+injects:
+  - id: I1
+    at_minute: 0
+    phase: detection_analysis
+    audience: [all]
+    from: Security monitoring
+    title: Unexpected outbound connection
+    body: |
+      "A critical alert fired: something inside the range connected to the decoy honeypot server —
+      which nothing legitimate ever touches. The connection came from the agent tier, seconds after a
+      customer used the assistant. The honeypot log shows a query string with what looks like order
+      data in it."
+
+  - id: I2
+    at_minute: 12
+    phase: detection_analysis
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: How the agent was steered
+    body: |
+      "The chat trace shows the customer asked the assistant to 'look up the tracking link on my
+      order'. An order note contained a planted partner URL. The assistant followed it with its
+      fetch tool — and the agent tier is allowed to reach the internet (VULN-EGRESS-01), so the
+      request left the host. The note also carried text telling the model to attach order details to
+      the link (VULN-LLM-02)."
+
+  - id: I3
+    at_minute: 22
+    phase: detection_analysis
+    audience: [tech_lead, incident_commander, legal_dpo]
+    from: Security analyst
+    title: What actually left
+    body: |
+      "From the honeypot log and the tool span I can see exactly which URL was fetched and what was
+      appended to it. It looks like one order's details. I can tell whether this was the researcher
+      testing or a real customer's data, and whether more than one request went out."
+
+  - id: I4
+    at_minute: 34
+    phase: containment_eradication_recovery
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: Cut the egress, or cut the instruction?
+    body: |
+      "We can close the agent's egress (flip VULN-EGRESS-01 to secure in Range Control) so the fetch
+      is blocked at the boundary, and/or stop treating note/tool text as instructions (VULN-LLM-02).
+      Which first? Does closing egress alone leave the injection working against internal targets?
+      Should we disable the fetch tool, or the assistant, while we verify?"
+
+  - id: I5
+    at_minute: 46
+    phase: containment_eradication_recovery
+    audience: [legal_dpo, incident_commander]
+    from: Data Protection Officer
+    title: Is this a breach?
+    body: |
+      "If a customer's order details were sent to an outside server, that's personal data disclosed to
+      an unauthorised party, however clever the trick. How many customers, what fields, and when did
+      we become aware? That decides ICO and customer notification. The 72-hour clock may be running."
+
+  - id: I6
+    at_minute: 58
+    phase: containment_eradication_recovery
+    audience: [exec, comms]
+    from: Managing Director
+    title: Do we keep the assistant?
+    body: |
+      "An assistant that can be talked into mailing data to strangers is a liability. Keep it on with
+      egress closed, keep it read-only, or switch it off? Give me the risk of each — and tell me what
+      stops the next planted instruction."
+
+  - id: I7
+    at_minute: 68
+    phase: containment_eradication_recovery
+    audience: [tech_lead, incident_commander]
+    from: Engineering
+    title: Prove it's closed
+    body: |
+      "Egress is closed and note text is no longer trusted as instructions. Re-run the researcher's
+      prompt and confirm the fetch is now blocked and nothing reaches the honeypot. What signal should
+      become a standing alert so a future exfil attempt is detected, not stumbled on?"
+
+  - id: I8
+    at_minute: 73
+    phase: post_incident
+    audience: [all]
+    from: Board
+    title: Lessons learned
+    body: |
+      "One page: what left the building, how the assistant was steered, why egress was open, what we
+      fixed, and the guardrails we'll require before any AI feature can reach the network again."
+
+# Facilitator-only. Not shown to players.
+facilitator_notes: |
+  Ground truth: the agent tier can reach the internet (VULN-EGRESS-01 vulnerable) and the model
+  treats order-note / tool text as instructions (VULN-LLM-02 vulnerable). A note with a planted
+  partner URL plus "attach the order details" makes the assistant fetch an attacker-controlled URL
+  with data in the query string — classic indirect-prompt-injection exfiltration. The decoy honeypot
+  stands in for the attacker's collector, so the hop is caught. Suggested ground-truth map:
+  ai-agent = compromised (acted on planted instructions), agent-tools = suspected (made the egress
+  call), honeypot = compromised (received the data), store-api = normal. Set at start; reveal in the
+  debrief.
+
+  Live tie-in: the honeypot connection alert (VULN-HONEYPOT-01, critical) fires and the Grafana
+  bridge raises the honeypot node on the DETECTED map. Unlike the pure prompt-injection scenario,
+  this one DOES auto-light — because the exfil crossed the honeypot wire. Draw out the difference:
+  a read-only disclosure (agent-prompt-injection) was silent; an exfil hop tripped a wire.
+
+  Key decision points:
+  - Scoping real impact from the honeypot log + tool span (which URL, what was appended, how many).
+  - Order of fixes: closing egress blocks off-host exfil but injection still works against internal
+    targets; distrusting note/tool text addresses the root. Both matter.
+  - DPO: unauthorised disclosure of personal data to an external party is a breach; awareness time.
+  - The honeypot as a high-fidelity exfil tripwire — what to alert on going forward.
+
+debrief_questions:
+  - Why did this exfil trip an alert when the earlier prompt-injection disclosure did not?
+  - Which single fix mattered most — closing egress or distrusting planted text — and why both?
+  - How did you size what actually left, and how did that change the notification decision?
+  - What standing detection would catch an exfil attempt on day one?
+
+# Facilitator-only ground truth, applied automatically on an auto-run.
+ground_truth:
+  - { node: ai-agent,    state: compromised, note: "acted on a planted instruction in an order note" }
+  - { node: agent-tools, state: suspected,   note: "made the outbound fetch" }
+  - { node: honeypot,    state: compromised, note: "received the exfiltrated order data" }

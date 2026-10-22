@@ -1,0 +1,46 @@
+@page "/leaderboard"
+@inject StoreApiClient Api
+
+<PageTitle>Leaderboard · Rubber Duck Emporium</PageTitle>
+
+<h1>🏆 Leaderboard</h1>
+<p class="text-body-secondary">
+    Teams ranked by flags captured. Found a <code>flag{…}</code>?
+    <a href="submit-flag">Submit it</a> with your team name.
+</p>
+
+@if (_board is null)
+{
+    <p class="text-body-secondary">Loading…</p>
+}
+else if (_board.Count == 0)
+{
+    <p class="text-body-secondary">No flags captured yet. Be the first.</p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr><th>#</th><th>Team</th><th class="text-end">Flags</th><th class="text-end">Points</th><th>Last capture</th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < _board.Count; i++)
+            {
+                var row = _board[i];
+                <tr class="@(i == 0 ? "table-warning" : "")">
+                    <td>@(i + 1)@(i == 0 ? " 🥇" : i == 1 ? " 🥈" : i == 2 ? " 🥉" : "")</td>
+                    <td class="fw-semibold">@row.Team</td>
+                    <td class="text-end">@row.Flags</td>
+                    <td class="text-end fw-semibold">@row.Points</td>
+                    <td class="small text-body-secondary">@row.LastCapture.ToLocalTime().ToString("HH:mm:ss")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p class="small text-body-secondary">Refresh to update.</p>
+}
+
+@code {
+    private IReadOnlyList<LeaderboardRow>? _board;
+    protected override async Task OnInitializedAsync() => _board = await Api.GetLeaderboardAsync();
+}

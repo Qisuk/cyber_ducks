@@ -27,6 +27,13 @@ public sealed class CtfFlagService(NpgsqlDataSource controlDb, NpgsqlDataSource 
         return list;
     }
 
+    /// <summary>Clear all attacker submissions — a fresh scoreboard for the next round.</summary>
+    public async Task ResetSubmissionsAsync(CancellationToken ct = default)
+    {
+        await using var cmd = storeDb.CreateCommand("DELETE FROM flag_submissions");
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     public async Task<IReadOnlyList<FlagSubmission>> GetSubmissionsAsync(CancellationToken ct = default)
     {
         var list = new List<FlagSubmission>();
@@ -50,12 +57,21 @@ public sealed class FlagSeeder(
 {
     private static string Flag(Guid g) => $"flag{{{g}}}";
 
-    public async Task StartAsync(CancellationToken ct)
+    public Task StartAsync(CancellationToken ct) => SeedAsync(regenerate: false, ct);
+
+    /// <summary>
+    /// Generate+place flags. regenerate=false (startup) only fills missing guids; regenerate=true
+    /// (facilitator "new round") mints fresh guids for every flag and re-places them.
+    /// </summary>
+    public async Task SeedAsync(bool regenerate, CancellationToken ct)
     {
         try
         {
-            // 1. One GUID per flag that doesn't have one yet (per deployment).
-            await using (var gen = controlDb.CreateCommand("UPDATE ctf_flags SET guid = gen_random_uuid() WHERE guid IS NULL"))
+            // 1. GUIDs. On regenerate, mint fresh ones for all flags and clear placed/grafana state.
+            var genSql = regenerate
+                ? "UPDATE ctf_flags SET guid = gen_random_uuid(), placed = false"
+                : "UPDATE ctf_flags SET guid = gen_random_uuid() WHERE guid IS NULL";
+            await using (var gen = controlDb.CreateCommand(genSql))
                 await gen.ExecuteNonQueryAsync(ct);
 
             // 2. Read the guids we place as data.

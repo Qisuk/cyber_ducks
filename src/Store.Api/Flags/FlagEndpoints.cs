@@ -4,7 +4,8 @@ using Npgsql;
 
 namespace Store.Api.Flags;
 
-public sealed record FlagSubmitRequest(string? Flag, string? Note, string? How);
+public sealed record FlagSubmitRequest(string? Flag, string? Note, string? How, string? Team);
+public sealed record LeaderboardRow(string Team, int Flags, int Points, DateTimeOffset LastCapture);
 
 /// <summary>
 /// Checks a submitted flag string against the per-deployment flag guids (range_control.ctf_flags,
@@ -42,11 +43,13 @@ public static class FlagEndpoints
         {
             var slug = await validator.MatchAsync(req.Flag, ct);
             var ip = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var team = string.IsNullOrWhiteSpace(req.Team) ? null : req.Team.Trim()[..Math.Min(req.Team.Trim().Length, 60)];
             await using var cmd = db.CreateCommand(
-                "INSERT INTO flag_submissions (flag_text, note, how, source_ip, recognised, matched_slug) VALUES (@f, @n, @h, @ip, @r, @s)");
+                "INSERT INTO flag_submissions (flag_text, note, how, team, source_ip, recognised, matched_slug) VALUES (@f, @n, @h, @t, @ip, @r, @s)");
             cmd.Parameters.AddWithValue("f", req.Flag ?? "");
             cmd.Parameters.AddWithValue("n", (object?)req.Note ?? DBNull.Value);
             cmd.Parameters.AddWithValue("h", (object?)req.How ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("t", (object?)team ?? DBNull.Value);
             cmd.Parameters.AddWithValue("ip", ip);
             cmd.Parameters.AddWithValue("r", slug is not null);
             cmd.Parameters.AddWithValue("s", (object?)slug ?? DBNull.Value);
@@ -58,6 +61,24 @@ public static class FlagEndpoints
                     ? "Flag accepted — recognised! Logged for the facilitator."
                     : "Submitted. The facilitator will verify it.",
             });
+        });
+
+        // Public leaderboard: recognised flags grouped by team, scored by the flag's points. Powers
+        // the store's /leaderboard page so the CTF self-drives without a facilitator tallying.
+        app.MapGet("/api/flags/leaderboard", async (NpgsqlDataSource db, CtfFlagReader flags, CancellationToken ct) =>
+        {
+            var points = await flags.GetPointsAsync(ct);
+            var caps = new List<(string Team, string Slug, DateTimeOffset At)>();
+            await using (var cmd = db.CreateCommand(
+                "SELECT team, matched_slug, min(submitted_at) FROM flag_submissions WHERE recognised AND team IS NOT NULL AND matched_slug IS NOT NULL GROUP BY team, matched_slug"))
+            await using (var r = await cmd.ExecuteReaderAsync(ct))
+                while (await r.ReadAsync(ct))
+                    caps.Add((r.GetString(0), r.GetString(1), r.GetFieldValue<DateTimeOffset>(2)));
+
+            var board = caps.GroupBy(c => c.Team).Select(g => new LeaderboardRow(
+                g.Key, g.Count(), g.Sum(c => points.GetValueOrDefault(c.Slug, 0)), g.Max(c => c.At)))
+                .OrderByDescending(t => t.Points).ThenBy(t => t.LastCapture).ToList();
+            return Results.Ok(board);
         });
 
         // CTF flag `admin-view`: an admin-only overview. Reached by escalating your role to admin

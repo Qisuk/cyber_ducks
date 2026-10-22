@@ -111,10 +111,11 @@ public static class AccountEndpoints
         // Post a flag (CTF). Public and anonymous — attackers submit a captured flag and how they got
         // it, including flags grabbed without tripping a log. Forwards to store-api, which records it.
         app.MapPost("/flags/submit", async (
-            StoreApiClient api, [FromForm] string flag, [FromForm] string? note, [FromForm] string? how) =>
+            StoreApiClient api, [FromForm] string flag, [FromForm] string? note, [FromForm] string? how, [FromForm] string? team) =>
         {
-            var result = await api.SubmitFlagAsync(flag ?? "", note, how);
-            return Results.LocalRedirect($"/submit-flag?recognised={result.Recognised}&msg={Uri.EscapeDataString(result.Message)}");
+            var result = await api.SubmitFlagAsync(flag ?? "", note, how, team);
+            var teamQuery = string.IsNullOrWhiteSpace(team) ? "" : $"&team={Uri.EscapeDataString(team)}";
+            return Results.LocalRedirect($"/submit-flag?recognised={result.Recognised}&msg={Uri.EscapeDataString(result.Message)}{teamQuery}");
         }).DisableAntiforgery();
 
         // --- Basket (anonymous allowed; checkout requires login) ---

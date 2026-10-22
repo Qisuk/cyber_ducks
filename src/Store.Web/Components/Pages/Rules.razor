@@ -1,0 +1,42 @@
+@page "/rules"
+
+<PageTitle>How this works · Rubber Duck Emporium</PageTitle>
+
+<h1>🦆 Rubber Duck Emporium — attack range</h1>
+<p class="lead text-body-secondary">
+    This shop is a deliberately-vulnerable Capture-the-Flag range. Your job is to break it, capture
+    <code>flag{…}</code> tokens, and prove it.
+</p>
+
+<h2 class="h5 mt-4">The game</h2>
+<ul>
+    <li>Flags look like <code>flag{00000000-0000-0000-0000-000000000000}</code> and are hidden behind
+        the shop's vulnerabilities — broken access control, injection, auth weaknesses, the AI
+        assistant, forged payments, and the decoy infrastructure.</li>
+    <li>When you capture one, <a href="submit-flag">submit it</a> with your <strong>team name</strong>
+        and a note on how you got it. You'll be told immediately whether it's recognised.</li>
+    <li>Standings are on the <a href="leaderboard">leaderboard</a>, ranked by points.</li>
+</ul>
+
+<h2 class="h5 mt-4">Getting in</h2>
+<ul>
+    <li>Sign in with a seeded account to reach order history, the assistant, and checkout. Ask your
+        facilitator for a starter account, or find your own way in.</li>
+    <li>The <strong>Google / Meta</strong> buttons only work from <code>localhost</code>; over the LAN,
+        use an email/password account.</li>
+    <li>The AI assistant ("Ask the Duck") runs on a local model — give it 10–90 seconds to answer, and
+        raise your tool's read timeout accordingly.</li>
+</ul>
+
+<h2 class="h5 mt-4">Rules of engagement</h2>
+<ul>
+    <li><strong>In scope:</strong> this shop and its APIs, the AI assistant, and anything it links to or
+        references.</li>
+    <li><strong>Out of scope:</strong> the host machine, the facilitator's Range Control and Grafana,
+        other teams, and anything outside this range's network.</li>
+    <li>No destructive denial-of-service against shared infrastructure — the goal is the flags, not
+        taking the range down for everyone.</li>
+    <li>All data here is fake. There are no real customers, cards, or secrets.</li>
+</ul>
+
+<p class="text-body-secondary">Good hunting. 🟡</p>

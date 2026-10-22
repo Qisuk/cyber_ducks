@@ -18,6 +18,11 @@
         @* Plain form post (static SSR; CSRF protection is VULN-CSRF-01). Public — no login needed. *@
         <form method="post" action="/flags/submit">
             <div class="mb-3">
+                <label class="form-label" for="team">Team name</label>
+                <input class="form-control" id="team" name="team" placeholder="e.g. Red Ducks" value="@Team" />
+                <div class="form-text">Used on the <a href="leaderboard">leaderboard</a>.</div>
+            </div>
+            <div class="mb-3">
                 <label class="form-label" for="flag">Flag</label>
                 <input class="form-control" id="flag" name="flag" placeholder="flag{00000000-0000-0000-0000-000000000000}" required autofocus />
             </div>
@@ -37,4 +42,5 @@
 @code {
     [SupplyParameterFromQuery] public string? Msg { get; set; }
     [SupplyParameterFromQuery] public bool? Recognised { get; set; }
+    [SupplyParameterFromQuery] public string? Team { get; set; }
 }

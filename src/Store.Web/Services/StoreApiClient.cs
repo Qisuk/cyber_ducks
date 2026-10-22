@@ -4,6 +4,7 @@ using CyberDucks.Shared.Contracts;
 namespace Store.Web.Services;
 
 public sealed record FlagSubmitResult(bool Recognised, string Message);
+public sealed record LeaderboardRow(string Team, int Flags, int Points, DateTimeOffset LastCapture);
 
 /// <summary>Typed client for store-api (flow F4).</summary>
 public sealed class StoreApiClient(HttpClient http)
@@ -27,12 +28,16 @@ public sealed class StoreApiClient(HttpClient http)
         http.GetFromJsonAsync<PingResponse>("api/ping", ct);
 
     /// <summary>Submit a captured CTF flag plus a note on how it was collected ("post a flag").</summary>
-    public async Task<FlagSubmitResult> SubmitFlagAsync(string flag, string? note, string? how, CancellationToken ct = default)
+    public async Task<FlagSubmitResult> SubmitFlagAsync(string flag, string? note, string? how, string? team, CancellationToken ct = default)
     {
-        using var response = await http.PostAsJsonAsync("api/flags/submit", new { flag, note, how }, ct);
+        using var response = await http.PostAsJsonAsync("api/flags/submit", new { flag, note, how, team }, ct);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<FlagSubmitResult>(ct) ?? new FlagSubmitResult(false, "Submitted.");
     }
+
+    /// <summary>The public CTF leaderboard: teams ranked by points.</summary>
+    public async Task<IReadOnlyList<LeaderboardRow>> GetLeaderboardAsync(CancellationToken ct = default) =>
+        await http.GetFromJsonAsync<List<LeaderboardRow>>("api/flags/leaderboard", ct) ?? [];
 
     /// <summary>The current user from store-api, using the forwarded JWT.</summary>
     public Task<UserInfo?> GetMeAsync(CancellationToken ct = default) =>

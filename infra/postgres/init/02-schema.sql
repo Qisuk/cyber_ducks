@@ -137,6 +137,7 @@ CREATE TABLE flag_submissions (
     flag_text    text        NOT NULL,
     note         text,
     how          text,
+    team         text,                            -- attacker team name, for the public leaderboard
     source_ip    text,
     recognised   boolean     NOT NULL DEFAULT false,
     matched_slug text,
