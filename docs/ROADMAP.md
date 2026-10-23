@@ -21,6 +21,17 @@ not yet built. For how to *run* an exercise, see [the runbook](../wargame/RUNBOO
 - **Attack replay** — `scripts/attack-replay.sh {stuffing|sqli|idor|honeypot|webhook|all}` generates
   realistic attacker telemetry so a blue team can train solo without a live red team.
 
+### AI & authoring
+- **Rate-limit defence (VULN-RATELIMIT-01)** — a toggleable sliding-window cap (15/min per caller)
+  on the assistant chat endpoint; vulnerable = unlimited (brute-force injection / abuse), secure =
+  429 over the limit.
+- **Deeper AI surface (RAG poisoning)** — a `get_product_reviews` agent tool over user-authored
+  reviews; a poisoned review read on a victim's query can chain into other tools (governed by
+  VULN-LLM-02). See [attacks/RAG-POISONING](../attacks/RAG-POISONING/README.md).
+- **Scenario editor** — Range Control `/scenarios`: author/edit/delete wargame scenarios in a
+  validated YAML editor, stored in the DB and merged into the catalogue (runnable like file
+  scenarios).
+
 ### Content & ops
 - **New scenarios** — `agent-data-exfil` (VULN-EGRESS-01 + VULN-LLM-02, exfil to the honeypot) and
   `privilege-escalation` (VULN-MASS-01 + VULN-AUTHZ-01, a customer self-promotes to admin).
@@ -33,18 +44,10 @@ not yet built. For how to *run* an exercise, see [the runbook](../wargame/RUNBOO
 
 ## Designed, not yet built (next steps)
 
-These were scoped but deferred to avoid shipping unverified/complex changes unattended:
-
 - **Silent-detection toggles** — turn the IDOR and AI-agent gaps into optional alerts (a request/tool
   span where `target customer != session sub`). Needs a Tempo/TraceQL-based alert or a span-metric,
   which Grafana unified alerting handles less directly than the existing Loki rules — prototype
   first.
-- **Agent rate-limit defence** — a toggleable throttle on the assistant / tool calls
-  (`AddDefence<…>` pattern + a new flag). Touches the flagship AI path, so build and verify
-  interactively.
-- **Scenario editor UI** — extend the existing mid-run message editing to full inject CRUD in Range
-  Control (currently scenarios are YAML files).
-- **Deeper AI surface** — RAG/notes-poisoning chains and tool-call chaining limits.
 - **Falco → map wiring** — a Loki alert on `RANGE-EDR` events with a `range_node`, so EDR findings
   raise a node like the other detections (left as tuning because the node depends on the rule).
 - **Image digest pinning** — pin base images by digest for reproducible builds.
