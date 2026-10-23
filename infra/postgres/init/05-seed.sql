@@ -161,6 +161,7 @@ INSERT INTO defence_flags (vuln_id, title, kind, requires_restart) VALUES
   ('VULN-WAF-01',     'Edge WAF blocks naive attack signatures',               'infra', true),
   ('VULN-EGRESS-01',  'Agent tool fetches restricted to store hosts (no exfil/ingest)', 'code', false),
   ('VULN-RESET-01',   'Strong, single-use password-reset tokens (no enumeration)',    'code', false),
+  ('VULN-RATELIMIT-01','AI assistant rate-limited (throttle abuse / brute-forcing)',  'code', false),
   ('SIEM-01',         'SIEM: detection & alerting enabled (off = blind run)',         'infra', false);
 
 -- SIEM-01 ships ON (secure) so the range has detection by default; "All vulnerable" turns it off for

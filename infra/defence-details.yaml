@@ -119,6 +119,10 @@ VULN-RESET-01:
   simulate: Request a reset for a known email (POST /api/auth/forgot-password) and read the mail in Mailpit (http://localhost:8025). Vulnerable issues a guessable 6-digit token and reveals whether the account exists, so the reset can be intercepted or brute-forced to take over the account.
   mitigation: Secure issues a 256-bit single-use token with a short expiry and always returns a generic response, so tokens can't be guessed and accounts can't be enumerated.
 
+VULN-RATELIMIT-01:
+  simulate: Script a burst of messages to the assistant (POST /chat via the store). Vulnerable has no cap, so an attacker can brute-force prompt-injection variants, scrape, or run up compute/cost without friction.
+  mitigation: Secure applies a per-caller sliding-window limit (15/min) to the chat endpoint; callers over the limit get HTTP 429. Slows injection brute-forcing and scripted abuse without blocking normal use.
+
 VULN-WEBHOOK-01:
   simulate: POST a forged "payment succeeded" webhook to store-api for an order id you choose. Vulnerable accepts it unsigned and marks the order paid.
   mitigation: Secure verifies the provider's HMAC signature and rejects any webhook that doesn't match.
