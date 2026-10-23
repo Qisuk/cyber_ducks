@@ -102,3 +102,14 @@ INSERT INTO ctf_flags (slug, vuln_id, title, where_hint, points) VALUES
 RESET ROLE;
 
 GRANT SELECT ON ctf_flags TO flags_reader;
+
+-- Facilitator-authored wargame scenarios, edited in Range Control (the scenario editor) and stored
+-- here as YAML alongside the file-based scenarios in wargame/scenarios/. Merged into the catalogue.
+SET ROLE range_control_owner;
+CREATE TABLE custom_scenarios (
+    id         text PRIMARY KEY,
+    yaml       text        NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    updated_by text
+);
+RESET ROLE;

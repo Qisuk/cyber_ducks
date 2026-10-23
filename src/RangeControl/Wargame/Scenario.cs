@@ -48,17 +48,24 @@ public sealed class Inject
 /// Reads the scenario files on demand, so a facilitator can edit a scenario without a rebuild
 /// (the folder is mounted read-only into the container).
 /// </summary>
-public sealed class ScenarioCatalog(string directory)
+public sealed class ScenarioCatalog(string directory, CustomScenarioStore? custom = null)
 {
     private static readonly IDeserializer Yaml = new DeserializerBuilder()
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
         .Build();
 
-    public IReadOnlyList<Scenario> All() =>
-        Directory.Exists(directory)
+    /// <summary>File scenarios plus facilitator-authored ones (custom overrides a file of the same id).</summary>
+    public IReadOnlyList<Scenario> All()
+    {
+        var fromFiles = Directory.Exists(directory)
             ? Directory.EnumerateFiles(directory, "*.yaml").Order().Select(Load).ToList()
             : [];
+        var fromDb = custom?.Cached ?? [];
+        var customIds = fromDb.Select(s => s.Id).ToHashSet();
+        return fromFiles.Where(f => !customIds.Contains(f.Id)).Concat(fromDb)
+            .OrderBy(s => s.Title).ToList();
+    }
 
     public Scenario? Find(string id) => All().FirstOrDefault(s => s.Id == id);
 

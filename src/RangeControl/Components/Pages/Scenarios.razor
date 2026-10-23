@@ -1,0 +1,146 @@
+@page "/scenarios"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using RangeControl.Wargame
+@inject ScenarioCatalog Catalog
+@inject CustomScenarioStore Store
+
+<PageTitle>Scenario editor · Range Control</PageTitle>
+
+<h1 class="h3 mb-0">Scenario editor</h1>
+<p class="text-secondary small">
+    Author wargame scenarios without editing files. Saved scenarios are validated, stored in the
+    range database, and appear in the <a href="wargame">Wargame</a> list alongside the file scenarios.
+</p>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <h2 class="h6 text-uppercase text-secondary">Custom scenarios</h2>
+        @if (_custom.Count == 0)
+        {
+            <p class="text-secondary small">None yet.</p>
+        }
+        <div class="list-group mb-3">
+            @foreach (var c in _custom)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div><code class="small">@c.Id</code>
+                        <div class="small text-secondary">edited @c.UpdatedAt.ToLocalTime().ToString("d MMM HH:mm")</div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-light" @onclick="() => Edit(c.Id)">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(c.Id)">Delete</button>
+                    </div>
+                </div>
+            }
+        </div>
+        <button class="btn btn-sm btn-success" @onclick="NewScenario">+ New scenario</button>
+
+        <h2 class="h6 text-uppercase text-secondary mt-4">From files (read-only)</h2>
+        <ul class="small text-secondary">
+            @foreach (var f in Catalog.All().Where(s => !_customIds.Contains(s.Id)))
+            {
+                <li>@f.Title <code>@f.Id</code></li>
+            }
+        </ul>
+    </div>
+
+    <div class="col-lg-7">
+        @if (_editing)
+        {
+            <h2 class="h6 text-uppercase text-secondary">@(_editingExisting ? $"Editing {_editId}" : "New scenario")</h2>
+            <p class="text-secondary small">YAML — must include <code>id</code>, <code>title</code> and <code>injects</code>. Saved on validation.</p>
+            <textarea class="form-control font-monospace" style="min-height:460px;font-size:.85rem;" @bind="_yaml" @bind:event="oninput"></textarea>
+            <div class="mt-2 d-flex gap-2">
+                <button class="btn btn-sm btn-primary" @onclick="Save" disabled="@_busy">Save</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => _editing = false">Cancel</button>
+            </div>
+            @if (_error is not null)
+            {
+                <div class="alert alert-danger py-2 small mt-2">@_error</div>
+            }
+            @if (_status is not null)
+            {
+                <div class="alert alert-success py-2 small mt-2">@_status</div>
+            }
+        }
+        else
+        {
+            <p class="text-secondary small">Select a scenario to edit, or create a new one.</p>
+        }
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<CustomScenarioRow> _custom = [];
+    private HashSet<string> _customIds = new();
+    private bool _editing, _editingExisting, _busy;
+    private string _editId = "";
+    private string _yaml = "";
+    private string? _error, _status;
+
+    private const string Template = """
+        id: my-scenario
+        title: "My scenario"
+        summary: One-line summary shown in the list.
+        duration_minutes: 75
+        briefing: |
+          Set the scene for the incident response team here.
+        injects:
+          - id: I1
+            at_minute: 0
+            phase: detection_analysis
+            audience: [all]
+            from: On-call engineer
+            title: Something happened
+            body: |
+              The first thing the team learns.
+        debrief_questions:
+          - What would you change next time?
+        ground_truth:
+          - { node: store-api, state: compromised, note: "why" }
+        """;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _custom = await Store.ListAsync();
+        _customIds = _custom.Select(c => c.Id).ToHashSet();
+    }
+
+    private void NewScenario()
+    {
+        _editing = true; _editingExisting = false; _editId = ""; _yaml = Template; _error = _status = null;
+    }
+
+    private async Task Edit(string id)
+    {
+        _yaml = await Store.GetYamlAsync(id) ?? "";
+        _editing = true; _editingExisting = true; _editId = id; _error = _status = null;
+    }
+
+    private async Task Save()
+    {
+        _busy = true; _error = _status = null;
+        try
+        {
+            await Store.SaveAsync(_yaml, "facilitator");
+            await Load();
+            _editingExisting = true;
+            _status = "Saved. It now appears in the Wargame list.";
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not save: {ex.Message}";
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task Delete(string id)
+    {
+        await Store.DeleteAsync(id);
+        await Load();
+        if (_editId == id) _editing = false;
+    }
+}

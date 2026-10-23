@@ -32,7 +32,11 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<FlagSeeder>());
 // are files mounted read-only into the container.
 builder.Services.AddSingleton<WargameEvents>();
 builder.Services.AddSingleton(sp => new WargameService(controlDb, sp.GetRequiredService<WargameEvents>()));
-builder.Services.AddSingleton(new ScenarioCatalog(builder.Configuration["Wargame:ScenarioPath"] ?? "/range/wargame/scenarios"));
+builder.Services.AddSingleton(sp => new CustomScenarioStore(controlDb, sp.GetRequiredService<ILogger<CustomScenarioStore>>()));
+builder.Services.AddHostedService(sp => sp.GetRequiredService<CustomScenarioStore>());
+builder.Services.AddSingleton(sp => new ScenarioCatalog(
+    builder.Configuration["Wargame:ScenarioPath"] ?? "/range/wargame/scenarios",
+    sp.GetRequiredService<CustomScenarioStore>()));
 builder.Services.AddSingleton(new TopologySource(builder.Configuration["Wargame:TopologyPath"] ?? "/range/topology.yaml"));
 builder.Services.AddSingleton(new DefenceDetailSource(builder.Configuration["DefenceDetails:Path"] ?? "/range/defence-details.yaml"));
 
