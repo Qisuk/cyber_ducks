@@ -31,7 +31,7 @@ services:
   # Single entry point on 127.0.0.1:${STORE_PORT}. Reverse-proxies store-web and runs a curated,
   # teaching WAF (VULN-WAF-01). Deliberately URL/header-only — it does not inspect request bodies.
   proxy:
-    image: nginx:1.27-alpine
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     labels: { range.zone: Z2 }
     environment:
       # VULN-WAF-01 (infra toggle): "off" = log-only (range default), "on" = block matches with 403.
@@ -205,7 +205,7 @@ services:
   # just delays the first chat. The `agent` net is sealed (internal: true) — seed the model before
   # sealing (it's cached in the `ollama` volume); offline, the entrypoint skips the pull and serves.
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:latest@sha256:7a3fe51cf50e0a6ddbcd054247d160baa90eb1935700bb59f3e96aa9a6da5025
     profiles: [local-llm]
     labels: { range.zone: Z3, range.logs: otlp }
     environment:
@@ -241,7 +241,7 @@ services:
   # it isn't there yet, then exits. Idempotent: a cached model means an instant no-op. This is how a
   # fresh deployment gets its model — seal protects the running range, the seeder bootstraps it.
   ollama-init:
-    image: ollama/ollama:latest
+    image: ollama/ollama:latest@sha256:7a3fe51cf50e0a6ddbcd054247d160baa90eb1935700bb59f3e96aa9a6da5025
     profiles: [local-llm]
     labels: { range.zone: Z3 }
     entrypoint:
@@ -302,7 +302,7 @@ services:
   # web UI (published, localhost) is the "inbox" — in the reset-interception scenario it stands in for
   # anyone who can read the mail. Holds fake mail only; nothing leaves the range.
   mailpit:
-    image: axllent/mailpit:v1.21.3
+    image: axllent/mailpit:v1.21.3@sha256:586f5a65e94782807f766aaf4dd3c970a6a62ff825807e10976955a60c43743d
     labels: { range.zone: Z7, range.logs: otlp }
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: "true"
@@ -325,7 +325,7 @@ services:
   # KC_HOSTNAME is the browser-facing URL (issuer); backchannel-dynamic lets store-web's container
   # reach it internally at idp:8080 (store-web rewrites the host).
   idp:
-    image: quay.io/keycloak/keycloak:26.8.1
+    image: quay.io/keycloak/keycloak:26.8.1@sha256:79c623a22abacf3fe6c00a5fb30f5b7843d717b234033b80995891c06116d244
     labels: { range.zone: Z7 }
     command: ["start-dev", "--import-realm"]
     environment:
@@ -353,7 +353,7 @@ services:
 
   # --- Z5 Data ----------------------------------------------------------------------------
   postgres:
-    image: postgres:18
+    image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     labels: { range.zone: Z5 }
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -436,7 +436,7 @@ services:
   # --- Z6 Backups -------------------------------------------------------------------------
   # Scheduled pg_dump of duckstore into the pgbackups volume (flow F17).
   backup:
-    image: postgres:18
+    image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     labels: { range.zone: Z6 }
     entrypoint: ["bash", "/backup-scripts/backup.sh"]
     environment:
@@ -460,7 +460,7 @@ services:
   # --- Z8 Observability -------------------------------------------------------------------
   # Grafana + Loki (logs) + Prometheus (metrics) + Tempo (traces) in one image.
   lgtm:
-    image: grafana/otel-lgtm:0.34.0
+    image: grafana/otel-lgtm:0.34.0@sha256:b966ea107831d526d9eb8fe4d2d86c9e5731392fad9dce8296bcf2072031f07c
     labels: { range.zone: Z8 }
     environment:
       # VULN-GRAFANA-01 (infra toggle, ADR-0011). VULNERABLE DEFAULT (decision 4): anyone
@@ -492,7 +492,7 @@ services:
 
   # Single entry point for all telemetry (decision 1). No published ports: internal only.
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.162.0
+    image: otel/opentelemetry-collector-contrib:0.162.0@sha256:39923a8e431bd1f57be82411999d389fcfe40857492e4365456d97a4c1f74be6
     labels: { range.zone: Z8 }
     command: ["--config=/etc/otelcol/collector.yaml"]
     # Root is needed to read Docker's log files (decision 2). A telemetry agent with host
@@ -515,7 +515,7 @@ services:
   # Per-container CPU/memory/network metrics (decision 3). Needs read-only host access;
   # no published port.
   cadvisor:
-    image: ghcr.io/google/cadvisor:v0.60.6
+    image: ghcr.io/google/cadvisor:v0.60.6@sha256:b8e7d1093144fd088f425ff003d75a4aa405de075db78dae3bc563730b1bd07a
     labels: { range.zone: Z8 }
     command:
       - --docker_only=true
@@ -539,7 +539,7 @@ services:
 
   # Database health metrics, read with the pg_monitor-only metrics_reader role.
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.20.1
+    image: prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
     labels: { range.zone: Z8 }
     environment:
       DATA_SOURCE_URI: "postgres:5432/duckstore?sslmode=disable"
@@ -558,9 +558,11 @@ services:
   #   docker compose --profile edr up -d falco
   # See infra/falco/README.md. Driver support varies on Docker Desktop / WSL2 — experimental.
   falco:
-    image: falcosecurity/falco:0.39.2
+    image: falcosecurity/falco:0.39.2@sha256:6aac44f74a105c2de47018c570da2128c84228c75dedddfcedf6a13adc0b5204
     profiles: [edr]
-    labels: { range.zone: Z8, range.logs: otlp }
+    # No range.logs=otlp: Falco writes plain JSON to stdout, collected via the file_log receiver
+    # (which maps com.docker.compose.service -> service_name=falco). range.logs=otlp would drop it.
+    labels: { range.zone: Z8 }
     privileged: true
     environment:
       FALCO_DRIVER: ${FALCO_DRIVER:-modern_ebpf}

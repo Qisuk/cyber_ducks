@@ -48,9 +48,10 @@ not yet built. For how to *run* an exercise, see [the runbook](../wargame/RUNBOO
   span where `target customer != session sub`). Needs a Tempo/TraceQL-based alert or a span-metric,
   which Grafana unified alerting handles less directly than the existing Loki rules — prototype
   first.
-- **Falco → map wiring** — a Loki alert on `RANGE-EDR` events with a `range_node`, so EDR findings
-  raise a node like the other detections (left as tuning because the node depends on the rule).
-- **Image digest pinning** — pin base images by digest for reproducible builds.
+
+The rest of the earlier list is now shipped: **Falco → map wiring** (the `range-falco-edr` Loki alert
+raises store-api when Falco fires) and **image digest pinning** (all third-party and .NET base images
+pinned by `@sha256:` digest for reproducible builds).
 
 ## Standing capabilities (reference)
 

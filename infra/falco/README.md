@@ -35,9 +35,10 @@ See [range-rules.yaml](range-rules.yaml): a shell in a `cyber-ducks-*` container
 from the app tier, and sensitive-file reads (`/backups/`, `*.env`, `RESTORE_KEY`). Events are JSON on
 stdout and, because the service is labelled `range.logs=otlp`, flow to Loki.
 
-## Wiring to the wargame map (follow-up)
+## Wiring to the wargame map
 
-To light a node on the detected map when Falco fires, add a Loki alert rule to
-`infra/grafana/alerting/range-alerts.yaml` keyed on `RANGE-EDR` with `range_node` set to the affected
-tier — the `GrafanaAlertBridge` then raises it exactly like the other detections. Left as a tuning
-step because the node depends on which rule fired.
+Done: the `range-falco-edr` alert in `infra/grafana/alerting/range-alerts.yaml` fires on any
+`RANGE-EDR` event (`{service_name="falco"} |= RANGE-EDR`) and carries `range_node: store-api`, so when
+SIEM-01 is secure and an exercise is running the `GrafanaAlertBridge` raises store-api on the detected
+map like the other detections. `store-api` is the representative app-tier node; retarget the
+`range_node` per rule if you want shell/egress/file events to light different nodes.
