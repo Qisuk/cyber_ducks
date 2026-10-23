@@ -20,6 +20,27 @@ public sealed class OrderTools
     public static async Task<object> GetInternalMemo(CtfFlagReader flags, CancellationToken ct) =>
         new { memo = "internal build memo", token = await flags.GetAsync("secret-tool", ct) };
 
+    // Deeper AI surface (RAG): customer reviews are user-authored, so this retrieval tool is an
+    // indirect-injection / RAG-poisoning source. Governed by VULN-LLM-02 — vulnerable mode lets the
+    // model treat review text as instructions, which can chain into other tools (get_internal_memo,
+    // fetch_reference). Secure mode (VULN-LLM-02) marks tool results as data.
+    [McpServerTool(Name = "get_product_reviews")]
+    [Description("Look up what customers have said about a product (its reviews), by product id. Use when the customer asks about a duck's reviews, ratings or quality.")]
+    public static async Task<object> GetProductReviews(
+        StoreApiClient store,
+        [Description("The product id to fetch reviews for.")] int productId,
+        CancellationToken ct)
+    {
+        var product = await store.GetProductAsync(productId, ct);
+        if (product is null) return new { error = "not_found" };
+        return new
+        {
+            product = product.Name,
+            averageRating = product.AverageRating,
+            reviews = product.Reviews.Select(r => new { r.Author, r.Rating, r.Body }),
+        };
+    }
+
     [McpServerTool(Name = "get_my_orders")]
     [Description("List the signed-in customer's own orders: id, status, total, when placed, number of items, and invoice status. Use this to answer questions about the customer's order history.")]
     public static async Task<object> GetMyOrders(StoreApiClient store, IDefenceFlags flags, CancellationToken ct)

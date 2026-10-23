@@ -9,6 +9,18 @@ public sealed class StoreApiClient(HttpClient http)
     public async Task<IReadOnlyList<OrderSummary>> GetMyOrdersAsync(CancellationToken ct) =>
         await http.GetFromJsonAsync<IReadOnlyList<OrderSummary>>("/api/orders", ct) ?? [];
 
+    /// <summary>A product with its (user-authored) reviews. Public endpoint; reviews are a RAG source.</summary>
+    public async Task<ProductDetail?> GetProductAsync(int id, CancellationToken ct)
+    {
+        using var response = await http.GetAsync($"/api/products/{id}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ProductDetail>(ct);
+    }
+
     public async Task<OrderDetail?> GetOrderAsync(int id, CancellationToken ct)
     {
         using var response = await http.GetAsync($"/api/orders/{id}", ct);
